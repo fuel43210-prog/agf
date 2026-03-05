@@ -12,7 +12,7 @@ const UserMap = dynamic(() => import("./UserMap"), { ssr: false });
 const RequestLocationPicker = dynamic(() => import("./RequestLocationPicker"), { ssr: false });
 
 type Worker = {
-  id: number;
+  id: number | string;
   first_name: string;
   last_name: string;
   status: string;
@@ -23,8 +23,8 @@ type Worker = {
 };
 
 type ServiceRequest = {
-  id: number;
-  user_id: number | null;
+  id: number | string;
+  user_id: number | string | null;
   vehicle_number: string;
   driving_licence: string;
   phone_number: string;
@@ -32,7 +32,7 @@ type ServiceRequest = {
   amount: number;
   status: string;
   created_at: string;
-  assigned_worker?: number | null;
+  assigned_worker?: number | string | null;
   user_lat?: number | null;
   user_lon?: number | null;
   rating?: number;
@@ -44,7 +44,7 @@ type ServiceRequest = {
 type CodEligibility = {
   allowed: boolean;
   reason?: string;
-  stationId?: number;
+  stationId?: number | string;
 };
 
 type BillPreview = {
@@ -75,7 +75,7 @@ export default function UserDashboardPage() {
   const { showToast } = useNotification();
   const [user, setUser] = useState<{
     first_name: string;
-    id?: number;
+    id?: number | string;
     phone_number?: string;
     driving_licence?: string;
   } | null>(null);
@@ -196,10 +196,7 @@ export default function UserDashboardPage() {
   const fetchServiceRequests = useCallback(async () => {
     setServiceRequestsLoading(true);
     try {
-      const url =
-        user?.id != null && !Number.isNaN(Number(user.id))
-          ? `/api/service-requests?user_id=${user.id}`
-          : "/api/service-requests";
+      const url = user?.id != null ? `/api/service-requests?user_id=${user.id}` : "/api/service-requests";
       const res = await fetch(url);
       const data = res.ok ? await res.json() : [];
       setServiceRequests(Array.isArray(data) ? data : []);
@@ -224,7 +221,7 @@ export default function UserDashboardPage() {
         }
         setUser({
           first_name: data.first_name || "User",
-          id: data.id != null ? Number(data.id) : undefined,
+          id: data.id != null ? data.id : undefined,
           phone_number: data.phone_number || "",
           driving_licence: data.driving_licence || "",
         });
@@ -418,7 +415,7 @@ export default function UserDashboardPage() {
       setCodEligibility(null);
       return;
     }
-    if (!user?.id || Number.isNaN(Number(user.id))) {
+    if (!user?.id) {
       setCodEligibility({ allowed: false, reason: "invalid_user" });
       setPaymentMethod("ONLINE");
       return;
@@ -875,7 +872,7 @@ export default function UserDashboardPage() {
     return `${mins}:${secs}`;
   };
 
-  const handleUserCancelRequest = async (id: number) => {
+  const handleUserCancelRequest = async (id: number | string) => {
     try {
       const res = await fetch(`/api/service-requests/${id}`, {
         method: "PATCH",

@@ -3,12 +3,16 @@ const bcrypt = require("bcryptjs");
 const { convexQuery, convexMutation } = require("../../../../lib/convexServer");
 
 const ALLOWED_STATUSES = ["Available", "Busy", "Offline"];
+const isInvalidWorkerId = (id) => {
+  const value = String(id ?? "").trim().toLowerCase();
+  return value === "" || value === "undefined" || value === "null";
+};
 
 export async function GET(request, context) {
   try {
     const params = await context.params;
     const id = params?.id;
-    if (!id) return NextResponse.json({ error: "Invalid worker id" }, { status: 400 });
+    if (isInvalidWorkerId(id)) return NextResponse.json({ error: "Invalid worker id" }, { status: 400 });
 
     const worker = await convexQuery("admin:getWorkerById", { id });
     if (!worker) return NextResponse.json({ error: "Worker not found" }, { status: 404 });
@@ -23,7 +27,7 @@ export async function PATCH(request, context) {
   try {
     const params = await context.params;
     const id = params?.id;
-    if (!id) return NextResponse.json({ error: "Invalid worker id" }, { status: 400 });
+    if (isInvalidWorkerId(id)) return NextResponse.json({ error: "Invalid worker id" }, { status: 400 });
 
     const body = await request.json();
     const { first_name, last_name, email, phone_number, status, status_locked, verified, new_password, reverify } =
@@ -103,7 +107,7 @@ export async function DELETE(request, context) {
   try {
     const params = await context.params;
     const id = params?.id;
-    if (!id) return NextResponse.json({ error: "Invalid worker id" }, { status: 400 });
+    if (isInvalidWorkerId(id)) return NextResponse.json({ error: "Invalid worker id" }, { status: 400 });
 
     const worker = await convexQuery("admin:getWorkerById", { id });
     if (!worker) return NextResponse.json({ error: "Worker not found" }, { status: 404 });

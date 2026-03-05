@@ -292,6 +292,7 @@ export const listWorkers = queryGeneric({
         const bankRow = bankByWorker.get(String(w._id));
         return {
           ...w,
+          id: w._id,
           avg_rating: rating && rating.count ? rating.sum / rating.count : null,
           is_bank_verified: Number(bankRow?.is_bank_verified || 0),
         };
@@ -301,7 +302,16 @@ export const listWorkers = queryGeneric({
 
 export const getWorkerById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await ctx.db.get(args.id);
+    const rawId = args?.id;
+    if (!rawId) return null;
+    try {
+      const direct = await ctx.db.get(rawId);
+      if (direct) return direct;
+    } catch {
+      // Ignore invalid ID format and fallback to string comparison scan.
+    }
+    const workers = await ctx.db.query("workers").collect();
+    return workers.find((w) => String(w._id) === String(rawId)) || null;
   },
 });
 

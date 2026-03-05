@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 const { convexMutation } = require("../../../../lib/convexServer");
+const isInvalidWorkerId = (id) => {
+  const value = String(id ?? "").trim().toLowerCase();
+  return value === "" || value === "undefined" || value === "null";
+};
 
 export async function POST(request) {
   try {
     const { worker_id, notes } = await request.json();
-    if (!worker_id) {
+    if (isInvalidWorkerId(worker_id)) {
       return NextResponse.json({ error: "Worker ID is required" }, { status: 400 });
     }
 

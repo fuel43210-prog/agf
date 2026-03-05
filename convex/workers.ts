@@ -45,12 +45,22 @@ export const getById = queryGeneric({
 
 export const listAvailableVerified = queryGeneric({
   handler: async (ctx) => {
-    const rows = await ctx.db
-      .query("workers")
-      .withIndex("by_status", (q) => q.eq("status", "Available"))
-      .collect();
+    const rows = await ctx.db.query("workers").collect();
+    const isVerified = (value: unknown) => {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value === 1;
+      if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        return normalized === "1" || normalized === "true" || normalized === "yes";
+      }
+      return false;
+    };
     return rows
-      .filter((w) => Boolean(w.verified))
+      .filter((w) => {
+        const status = String(w.status || "Available").trim().toLowerCase();
+        const available = status === "available";
+        return available && isVerified(w.verified) && !Boolean(w.status_locked);
+      })
       .sort((a, b) =>
         `${a.first_name || ""} ${a.last_name || ""}`.localeCompare(
           `${b.first_name || ""} ${b.last_name || ""}`

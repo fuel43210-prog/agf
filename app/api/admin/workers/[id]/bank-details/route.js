@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 const { requireAdmin, errorResponse, successResponse } = require("../../../../../../database/auth-middleware");
 const { decrypt } = require("../../../../../utils/encryption");
 const { convexQuery, convexMutation } = require("../../../../../lib/convexServer");
+const isInvalidWorkerId = (id) => {
+    const value = String(id ?? "").trim().toLowerCase();
+    return value === "" || value === "undefined" || value === "null";
+};
 
 export async function GET(request, props) {
     const params = await props.params;
     const { id } = params;
+    if (isInvalidWorkerId(id)) return errorResponse("Invalid worker id", 400);
 
     const auth = requireAdmin(request);
     if (!auth) return errorResponse("Unauthorized", 401);
@@ -34,6 +39,7 @@ export async function GET(request, props) {
 export async function PATCH(request, props) {
     const params = await props.params;
     const { id } = params;
+    if (isInvalidWorkerId(id)) return errorResponse("Invalid worker id", 400);
 
     const auth = requireAdmin(request);
     if (!auth) return errorResponse("Unauthorized", 401);

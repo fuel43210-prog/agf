@@ -9,7 +9,13 @@ const { convexMutation, convexQuery } = require("../../../lib/convexServer");
  */
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const signature = request.headers.get("x-razorpay-signature");
 
     // Get Razorpay webhook secret from environment
@@ -26,11 +32,14 @@ export async function POST(request) {
     }
 
     // Verify signature if secret is configured
-    if (webhookSecret && signature) {
-      const bodyString = JSON.stringify(body);
+    if (webhookSecret) {
+      if (!signature) {
+        return NextResponse.json({ error: "Missing webhook signature" }, { status: 401 });
+      }
+
       const computedSignature = crypto
         .createHmac("sha256", webhookSecret)
-        .update(bodyString)
+        .update(rawBody)
         .digest("hex");
 
       if (computedSignature !== signature) {
@@ -97,11 +106,10 @@ export async function POST(request) {
     return NextResponse.json({ success: true, event });
   } catch (err) {
     console.error("Webhook processing error:", err);
-    // Return 200 to acknowledge receipt even if there was an error
-    // This prevents Razorpay from retrying
+    // Return non-2xx so webhook sender can retry on transient failures.
     return NextResponse.json(
       { success: false, error: err.message },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }

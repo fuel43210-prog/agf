@@ -579,15 +579,49 @@ export default function WorkerDashboardPage() {
 
   const handleDocUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!worker?.id) return;
+    if (!worker?.id) {
+      showToast("Worker session is missing. Please log out and log in again.", "error");
+      return;
+    }
 
-    const fileToDataUrl = (file: File) =>
-      new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(String(reader.result || ""));
-        reader.onerror = () => reject(new Error("Failed to read file"));
-        reader.readAsDataURL(file);
-      });
+    const fileToDataUrl = async (file: File) => {
+      const readAsDataUrl = () =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
+
+      const raw = await readAsDataUrl();
+      // Reduce payload size to avoid API/DB limits for base64 uploads.
+      try {
+        if (!raw.startsWith("data:image/")) return raw;
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = () => reject(new Error("Invalid image"));
+          el.src = raw;
+        });
+
+        const maxSide = 1280;
+        const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * ratio));
+        const h = Math.max(1, Math.round(img.height * ratio));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return raw;
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const compressed = canvas.toDataURL("image/jpeg", 0.72);
+        return compressed.length < raw.length ? compressed : raw;
+      } catch {
+        return raw;
+      }
+    };
 
     let licensePhoto = docFiles.license;
     let selfPhoto = docFiles.self;
@@ -618,6 +652,12 @@ export default function WorkerDashboardPage() {
 
     if (!licensePhoto || !selfPhoto) {
       showToast("Please upload both driving license and selfie.", "error");
+      return;
+    }
+
+    const approxBytes = Math.round(((licensePhoto.length || 0) + (selfPhoto.length || 0)) * 0.75);
+    if (approxBytes > 1_500_000) {
+      showToast("Images are too large. Use smaller photos or lower resolution.", "error");
       return;
     }
 
@@ -658,7 +698,33 @@ export default function WorkerDashboardPage() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setDocFiles(prev => ({ ...prev, [field]: reader.result as string }));
+        const raw = String(reader.result || "");
+        if (!raw.startsWith("data:image/")) {
+          setDocFiles(prev => ({ ...prev, [field]: raw }));
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          const maxSide = 1280;
+          const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * ratio));
+          const h = Math.max(1, Math.round(img.height * ratio));
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            setDocFiles(prev => ({ ...prev, [field]: raw }));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL("image/jpeg", 0.72);
+          setDocFiles(prev => ({ ...prev, [field]: compressed.length < raw.length ? compressed : raw }));
+        };
+        img.onerror = () => {
+          setDocFiles(prev => ({ ...prev, [field]: raw }));
+        };
+        img.src = raw;
       };
       reader.readAsDataURL(file);
     }

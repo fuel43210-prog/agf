@@ -116,7 +116,7 @@ const minDistanceToHeatPointsMeters = (point: Position, points: HeatPoint[]) => 
 const heatSeverityFromPoint = (point: HeatPoint) => (point.intensity >= 0.85 ? "none" : "weak");
 
 type AssignedWorker = {
-  id: number;
+  id: number | string;
   first_name: string;
   last_name: string;
   status?: string;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useNotification } from "@/app/NotificationSystem";
 
 type Worker = {
-  id: number;
+  id: number | string;
   email: string;
   first_name: string;
   last_name: string;
@@ -20,6 +20,10 @@ type Worker = {
   lock_reason?: string;
   license_photo?: string;
   self_photo?: string;
+};
+const isInvalidWorkerId = (id: unknown) => {
+  const value = String(id ?? "").trim().toLowerCase();
+  return value === "" || value === "undefined" || value === "null";
 };
 function formatAvgRating(value: unknown): string | null {
   const n = Number(value);
@@ -45,7 +49,7 @@ export default function AdminWorkersPage() {
     verified: false,
     new_password: "",
   });
-  const [workerReviews, setWorkerReviews] = useState<{ id: number; rating: number; review_comment: string; completed_at: string }[]>([]);
+  const [workerReviews, setWorkerReviews] = useState<{ id: number | string; rating: number; review_comment: string; completed_at: string }[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -56,7 +60,9 @@ export default function AdminWorkersPage() {
         if (!res.ok) throw new Error("Failed to load workers");
         return res.json();
       })
-      .then((data) => setWorkers(data))
+      .then((data) =>
+        setWorkers((Array.isArray(data) ? data : []).filter((w) => !isInvalidWorkerId(w?.id)))
+      )
       .catch((err) => setError(err.message || "Could not load workers."));
   };
 
@@ -80,6 +86,7 @@ export default function AdminWorkersPage() {
   };
 
   const openEdit = (w: Worker) => {
+    if (isInvalidWorkerId(w?.id)) return;
     setEditWorker(w);
     setEditForm({
       first_name: w.first_name,
@@ -105,7 +112,8 @@ export default function AdminWorkersPage() {
       .catch(err => console.error("Failed to fetch full worker details", err));
   };
 
-  const fetchReviews = (workerId: number) => {
+  const fetchReviews = (workerId: number | string) => {
+    if (isInvalidWorkerId(workerId)) return;
     setLoadingReviews(true);
     fetch(`/api/admin/workers/${workerId}/reviews`)
       .then(res => res.json())
@@ -119,7 +127,7 @@ export default function AdminWorkersPage() {
   // ... rest of the component ...
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | string | null>(null);
 
   const closeEdit = () => {
     setEditWorker(null);
@@ -147,7 +155,8 @@ export default function AdminWorkersPage() {
       .finally(() => setEditSaving(false));
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: number | string) => {
+    if (isInvalidWorkerId(id)) return;
     setDeleteConfirm(id);
   };
 
@@ -166,7 +175,8 @@ export default function AdminWorkersPage() {
       });
   };
 
-  const handleCollectCash = async (workerId: number) => {
+  const handleCollectCash = async (workerId: number | string) => {
+    if (isInvalidWorkerId(workerId)) return;
     const confirmed = await showConfirm("Are you sure you have collected all cash from this worker? This will reset their floater cash to 0 and unlock their status if it was locked.");
     if (!confirmed) return;
 

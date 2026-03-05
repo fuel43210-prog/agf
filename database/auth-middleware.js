@@ -3,7 +3,27 @@
 
 const crypto = require('crypto');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const DEFAULT_JWT_SECRET = 'your-secret-key-change-in-production';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+let warnedInsecureSecret = false;
+
+function resolveJwtSecret() {
+  const jwtSecretFromEnv = String(process.env.JWT_SECRET || '').trim();
+  const jwtSecretIsInsecure = !jwtSecretFromEnv || jwtSecretFromEnv === DEFAULT_JWT_SECRET;
+
+  if (jwtSecretIsInsecure && NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is missing or insecure in production. Set a strong JWT_SECRET env var.');
+  }
+
+  if (jwtSecretIsInsecure && NODE_ENV !== 'production' && !warnedInsecureSecret) {
+    warnedInsecureSecret = true;
+    console.warn('JWT_SECRET is missing/insecure for development. Set JWT_SECRET to avoid weak local tokens.');
+  }
+
+  return jwtSecretFromEnv || DEFAULT_JWT_SECRET;
+}
+
+const JWT_SECRET = String(process.env.JWT_SECRET || '').trim() || DEFAULT_JWT_SECRET;
 const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '7d';
 
 function base64UrlEncode(str) {
@@ -27,6 +47,7 @@ function base64UrlDecode(str) {
  * @returns {string} JWT token
  */
 function generateToken(user) {
+  const jwtSecret = resolveJwtSecret();
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const payload = {
@@ -41,7 +62,7 @@ function generateToken(user) {
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
 
   const signature = crypto
-    .createHmac('sha256', JWT_SECRET)
+    .createHmac('sha256', jwtSecret)
     .update(encodedHeader + '.' + encodedPayload)
     .digest('base64')
     .replace(/\+/g, '-')
@@ -58,6 +79,12 @@ function generateToken(user) {
  */
 function verifyToken(token) {
   if (!token) return null;
+  let jwtSecret;
+  try {
+    jwtSecret = resolveJwtSecret();
+  } catch {
+    return null;
+  }
 
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -65,7 +92,7 @@ function verifyToken(token) {
   const [encodedHeader, encodedPayload, signature] = parts;
 
   const expectedSignature = crypto
-    .createHmac('sha256', JWT_SECRET)
+    .createHmac('sha256', jwtSecret)
     .update(encodedHeader + '.' + encodedPayload)
     .digest('base64')
     .replace(/\+/g, '-')

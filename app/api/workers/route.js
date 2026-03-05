@@ -11,11 +11,24 @@ export async function GET(request) {
 
     if (workerId) {
       const worker = await convexQuery("workers:getById", { id: workerId });
-      return NextResponse.json(worker || { error: "Worker not found" }, { status: worker ? 200 : 404 });
+      if (!worker) {
+        return NextResponse.json({ error: "Worker not found" }, { status: 404 });
+      }
+      return NextResponse.json(
+        {
+          ...worker,
+          id: worker.id || worker._id,
+        },
+        { status: 200 }
+      );
     }
 
     const workers = await convexQuery("workers:listAvailableVerified", {});
-    return NextResponse.json(workers || []);
+    const normalized = (workers || []).map((w) => ({
+      ...w,
+      id: w.id || w._id,
+    }));
+    return NextResponse.json(normalized);
   } catch (err) {
     console.error("Workers list error:", err);
     return NextResponse.json({ error: "Failed to load workers" }, { status: 500 });
@@ -60,6 +73,9 @@ export async function PATCH(request) {
       if (/not found/i.test(message)) {
         return NextResponse.json({ error: "Worker not found" }, { status: 404 });
       }
+      if (/too large|limit|max size|payload/i.test(message)) {
+        return NextResponse.json({ error: "Uploaded images are too large. Please upload smaller images." }, { status: 413 });
+      }
       if (/locked/i.test(message)) {
         return NextResponse.json({ error: message, locked: true }, { status: 403 });
       }
@@ -78,4 +94,3 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-
