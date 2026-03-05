@@ -548,6 +548,86 @@ export const createWorkerPayout = mutationGeneric({
   },
 });
 
+export const listEligibleWorkersForPayout = queryGeneric({
+  handler: async (ctx) => {
+    const workers = await ctx.db.query("workers").collect();
+    const bank = await ctx.db.query("worker_bank_details").collect();
+    const bankByWorker = new Map(bank.map((b) => [String(b.worker_id), b]));
+    return workers
+      .filter((w) => Number(w.pending_balance || 0) > 0)
+      .map((w) => {
+        const bd = bankByWorker.get(String(w._id));
+        return {
+          id: w._id,
+          first_name: w.first_name,
+          last_name: w.last_name,
+          email: w.email,
+          phone_number: w.phone_number,
+          pending_balance: Number(w.pending_balance || 0),
+          account_holder_name: bd?.account_holder_name || "",
+          account_number: bd?.account_number || "",
+          ifsc_code: bd?.ifsc_code || "",
+          bank_name: bd?.bank_name || "",
+          is_bank_verified: Number(bd?.is_bank_verified || 0),
+          razorpay_contact_id: bd?.razorpay_contact_id || "",
+          razorpay_fund_account_id: bd?.razorpay_fund_account_id || "",
+        };
+      })
+      .filter((w) => Number(w.is_bank_verified || 0) === 1);
+  },
+});
+
+export const saveWorkerPayoutRefs = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    const rows = await ctx.db.query("worker_bank_details").collect();
+    const row = rows.find((r) => String(r.worker_id) === String(args.worker_id));
+    if (!row) throw new Error("Bank details not found");
+    await ctx.db.patch(row._id, {
+      ...(args.razorpay_contact_id !== undefined
+        ? { razorpay_contact_id: args.razorpay_contact_id }
+        : {}),
+      ...(args.razorpay_fund_account_id !== undefined
+        ? { razorpay_fund_account_id: args.razorpay_fund_account_id }
+        : {}),
+      updated_at: nowIso(),
+    });
+    return { ok: true };
+  },
+});
+
+export const finalizeWorkerPayout = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    const worker = await ctx.db.get(args.worker_id);
+    if (!worker) throw new Error("Worker not found");
+    const amount = Number(args.amount || 0);
+    const now = nowIso();
+
+    await ctx.db.insert("payout_logs", {
+      worker_id: worker._id,
+      payout_id: args.payout_id || undefined,
+      amount,
+      status: args.status || "processing",
+      created_at: now,
+      updated_at: now,
+    });
+
+    await ctx.db.insert("worker_payouts", {
+      worker_id: worker._id,
+      amount,
+      reference_id: args.payout_id || undefined,
+      notes: args.notes || "Admin payout settlement",
+      created_at: now,
+    });
+
+    await ctx.db.patch(worker._id, {
+      pending_balance: 0,
+      last_payout_at: now,
+      updated_at: now,
+    });
+    return { ok: true };
+  },
+});
+
 export const getLatestFloatingPending = queryGeneric({
   handler: async (ctx, args: any) => {
     const rows = await ctx.db.query("floating_cash_payments").collect();

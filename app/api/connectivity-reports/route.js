@@ -1,16 +1,10 @@
-const { getConnectivityDB, ensureConnectivitySchema } = require("../../../database/connectivity-db");
+const { convexMutation } = require("../../lib/convexServer");
 
 function readJson(req) {
   return req.json().catch(() => null);
 }
 
 export async function POST(req) {
-  try {
-    await ensureConnectivitySchema();
-  } catch (err) {
-    return new Response(JSON.stringify({ error: "DB init failed" }), { status: 500 });
-  }
-
   const body = await readJson(req);
   if (!body) {
     return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
@@ -35,24 +29,21 @@ export async function POST(req) {
     return new Response(JSON.stringify({ error: "invalid severity" }), { status: 400 });
   }
 
-  const db = getConnectivityDB();
   const reportedAt = new Date().toISOString();
-
-  return await new Promise((resolve) => {
-    db.run(
-      `
-        INSERT INTO connectivity_reports
-          (lat, lng, severity, effective_type, downlink, rtt, failures, offline, reported_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [lat, lng, severity, effectiveType, downlink, rtt, failures, offline ? 1 : 0, reportedAt],
-      function (err) {
-        if (err) {
-          resolve(new Response(JSON.stringify({ error: "DB insert failed" }), { status: 500 }));
-          return;
-        }
-        resolve(new Response(JSON.stringify({ ok: true, id: this.lastID }), { status: 201 }));
-      }
-    );
-  });
+  try {
+    const result = await convexMutation("connectivity:addReport", {
+      lat,
+      lng,
+      severity,
+      effectiveType,
+      downlink,
+      rtt,
+      failures,
+      offline,
+      reportedAt,
+    });
+    return new Response(JSON.stringify({ ok: true, id: result?.id }), { status: 201 });
+  } catch {
+    return new Response(JSON.stringify({ error: "DB insert failed" }), { status: 500 });
+  }
 }

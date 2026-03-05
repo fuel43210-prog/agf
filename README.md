@@ -39,5 +39,4 @@ npx convex dev --once
 
 ## Notes
 
-- Core auth, users/workers, service requests, payments, and fuel-station flows are now Convex-backed.
-- Some admin and legacy endpoints may still use SQL during the migration window.
+- All active API routes are Convex-backed.
