@@ -130,6 +130,8 @@ export default function WorkerDashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [docFiles, setDocFiles] = useState<{ license: string; self: string }>({ license: "", self: "" });
+  const licenseInputRef = useRef<HTMLInputElement | null>(null);
+  const selfInputRef = useRef<HTMLInputElement | null>(null);
   const busyNoticeTimer = useRef<number | null>(null);
   const lastLocationSentRef = useRef<number>(0);
   const router = useRouter();
@@ -571,7 +573,47 @@ export default function WorkerDashboardPage() {
 
   const handleDocUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!worker?.id || !docFiles.license || !docFiles.self) return;
+    if (!worker?.id) return;
+
+    const fileToDataUrl = (file: File) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+
+    let licensePhoto = docFiles.license;
+    let selfPhoto = docFiles.self;
+
+    if (!licensePhoto) {
+      const raw = licenseInputRef.current?.files?.[0];
+      if (raw) {
+        try {
+          licensePhoto = await fileToDataUrl(raw);
+        } catch {
+          showToast("Failed to read license file.", "error");
+          return;
+        }
+      }
+    }
+
+    if (!selfPhoto) {
+      const raw = selfInputRef.current?.files?.[0];
+      if (raw) {
+        try {
+          selfPhoto = await fileToDataUrl(raw);
+        } catch {
+          showToast("Failed to read selfie file.", "error");
+          return;
+        }
+      }
+    }
+
+    if (!licensePhoto || !selfPhoto) {
+      showToast("Please upload both driving license and selfie.", "error");
+      return;
+    }
 
     setUploading(true);
     try {
@@ -580,20 +622,26 @@ export default function WorkerDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: worker.id,
-          license_photo: docFiles.license,
-          self_photo: docFiles.self,
+          license_photo: licensePhoto,
+          self_photo: selfPhoto,
           submit_docs: true
         }),
       });
 
       if (res.ok) {
         setUploadSuccess(true);
+        setDocFiles({ license: licensePhoto, self: selfPhoto });
+        showToast("Documents submitted for auto-verification.", "success");
         // Refresh worker data to show "Waiting" state
         const updatedRes = await fetch(`/api/workers?id=${worker.id}`);
         if (updatedRes.ok) setWorker(await updatedRes.json());
+      } else {
+        const data = await res.json().catch(() => null);
+        showToast(data?.error || "Failed to submit documents.", "error");
       }
     } catch (err) {
       console.error("Upload failed", err);
+      showToast("Error submitting documents.", "error");
     } finally {
       setUploading(false);
     }
@@ -859,6 +907,7 @@ export default function WorkerDashboardPage() {
                       <div style={{ textAlign: 'left' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#94a3b8' }}>Driving License Photo</label>
                         <input
+                          ref={licenseInputRef}
                           type="file"
                           accept="image/*"
                           onChange={(e) => handleFileChange('license', e)}
@@ -869,6 +918,7 @@ export default function WorkerDashboardPage() {
                       <div style={{ textAlign: 'left' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#94a3b8' }}>Selfie Photo</label>
                         <input
+                          ref={selfInputRef}
                           type="file"
                           accept="image/*"
                           onChange={(e) => handleFileChange('self', e)}
