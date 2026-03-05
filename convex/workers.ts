@@ -126,3 +126,17 @@ export const updateWorkerProfile = mutationGeneric({
     return { ok: true };
   },
 });
+
+export const lockByLowRating = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    const worker = await ctx.db.get(args.worker_id);
+    if (!worker) return { ok: false };
+    await ctx.db.patch(worker._id, {
+      status: "Offline",
+      status_locked: true,
+      lock_reason: "Low Rating",
+      updated_at: nowIso(),
+    });
+    return { ok: true };
+  },
+});

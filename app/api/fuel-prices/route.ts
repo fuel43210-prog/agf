@@ -7,16 +7,11 @@ const FALLBACK_PRICES = {
     last_updated: "2026-02-14T06:00:00Z"
 };
 
-const { getDB } = require("../../../database/db");
+const { convexQuery } = require("../../lib/convexServer");
 
 export async function GET() {
     try {
-        const db = getDB();
-        const settings = await new Promise((resolve) => {
-            db.get("SELECT is_raining FROM platform_settings WHERE id = 1", [], (err: any, row: any) => {
-                resolve(row || { is_raining: 0 });
-            });
-        });
+        const settings = (await convexQuery("admin:getPlatformSettings", {})) || { is_raining: 0 };
 
         const isRaining = !!(settings as any).is_raining;
         

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-const { getDB } = require("../../../../../../database/db");
 const { requireAdmin, errorResponse, successResponse } = require("../../../../../../database/auth-middleware");
 const { decrypt } = require("../../../../../utils/encryption");
+const { convexQuery, convexMutation } = require("../../../../../lib/convexServer");
 
 export async function GET(request, props) {
     const params = await props.params;
@@ -10,15 +10,8 @@ export async function GET(request, props) {
     const auth = requireAdmin(request);
     if (!auth) return errorResponse("Unauthorized", 401);
 
-    const db = getDB();
     try {
-        const bankDetails = await new Promise((resolve, reject) => {
-            db.get(
-                "SELECT * FROM worker_bank_details WHERE worker_id = ?",
-                [id],
-                (err, row) => (err ? reject(err) : resolve(row))
-            );
-        });
+        const bankDetails = await convexQuery("admin:getWorkerBankDetails", { worker_id: id });
 
         if (!bankDetails) {
             return errorResponse("Bank details not found", 404);
@@ -52,17 +45,17 @@ export async function PATCH(request, props) {
             return errorResponse("Invalid status", 400);
         }
 
-        const db = getDB();
-        await new Promise((resolve, reject) => {
-            db.run(
-                "UPDATE worker_bank_details SET is_bank_verified = ?, rejection_reason = ?, updated_at = CURRENT_TIMESTAMP WHERE worker_id = ?",
-                [status, rejection_reason || null, id],
-                (err) => (err ? reject(err) : resolve())
-            );
+        await convexMutation("admin:updateWorkerBankVerification", {
+            worker_id: id,
+            status,
+            rejection_reason,
         });
 
         return successResponse({ message: "Verification status updated" });
     } catch (err) {
+        if (/bank details not found/i.test(String(err?.message || ""))) {
+            return errorResponse("Bank details not found", 404);
+        }
         console.error("Admin PATCH bank-status error:", err);
         return errorResponse("Internal server error", 500);
     }

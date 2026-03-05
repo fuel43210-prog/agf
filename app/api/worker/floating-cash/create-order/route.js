@@ -1,36 +1,13 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-const { getDB, getLocalDateTimeString } = require("../../../../../database/db");
 const { requireWorker } = require("../../../../../database/auth-middleware");
+const { convexQuery, convexMutation } = require("../../../../lib/convexServer");
 
 function getRazorpayClient() {
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
   if (!keyId || !keySecret) return null;
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
-}
-
-function ensureFloatingCashPaymentsTable(db) {
-  return new Promise((resolve) => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS floating_cash_payments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        worker_id INTEGER NOT NULL,
-        amount REAL NOT NULL,
-        amount_paise INTEGER NOT NULL,
-        purpose VARCHAR(50) NOT NULL DEFAULT 'FLOATING_CASH_CLEAR',
-        razorpay_order_id VARCHAR(128) UNIQUE,
-        razorpay_payment_id VARCHAR(128),
-        razorpay_signature TEXT,
-        status VARCHAR(30) NOT NULL DEFAULT 'created',
-        failure_reason TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (worker_id) REFERENCES workers(id)
-      )`,
-      () => resolve()
-    );
-  });
 }
 
 export async function POST(request) {
@@ -45,21 +22,11 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const workerId = Number(auth.id);
-    if (!Number.isFinite(workerId) || workerId <= 0) {
+    const workerId = auth.id;
+    if (!workerId) {
       return NextResponse.json({ error: "Invalid worker identity" }, { status: 401 });
     }
-
-    const db = getDB();
-    await ensureFloatingCashPaymentsTable(db);
-
-    const worker = await new Promise((resolve, reject) => {
-      db.get(
-        "SELECT id, first_name, last_name, floater_cash FROM workers WHERE id = ?",
-        [workerId],
-        (err, row) => (err ? reject(err) : resolve(row || null))
-      );
-    });
+    const worker = await convexQuery("admin:getWorkerById", { id: workerId });
 
     if (!worker) {
       return NextResponse.json({ error: "Worker not found" }, { status: 404 });
@@ -70,16 +37,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "No floating cash to clear." }, { status: 400 });
     }
 
-    const existingPending = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT id, amount, amount_paise, razorpay_order_id, created_at
-         FROM floating_cash_payments
-         WHERE worker_id = ? AND status IN ('created', 'processing')
-         ORDER BY id DESC LIMIT 1`,
-        [workerId],
-        (err, row) => (err ? reject(err) : resolve(row || null))
-      );
-    });
+    const existingPending = await convexQuery("admin:getLatestFloatingPending", { worker_id: workerId });
 
     if (existingPending?.razorpay_order_id) {
       const createdAt = new Date(String(existingPending.created_at || "").replace(" ", "T"));
@@ -100,14 +58,10 @@ export async function POST(request) {
         );
       }
 
-      await new Promise((resolve) => {
-        db.run(
-          `UPDATE floating_cash_payments
-           SET status = 'failed', failure_reason = ?, updated_at = ?
-           WHERE id = ?`,
-          ["expired_before_checkout", getLocalDateTimeString(), existingPending.id],
-          () => resolve()
-        );
+      await convexMutation("admin:markFloatingPaymentFailed", {
+        worker_id: workerId,
+        razorpay_order_id: existingPending.razorpay_order_id,
+        reason: "expired_before_checkout",
       });
     }
 
@@ -122,15 +76,11 @@ export async function POST(request) {
       },
     });
 
-    const now = getLocalDateTimeString();
-    await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO floating_cash_payments
-         (worker_id, amount, amount_paise, purpose, razorpay_order_id, status, created_at, updated_at)
-         VALUES (?, ?, ?, 'FLOATING_CASH_CLEAR', ?, 'created', ?, ?)`,
-        [workerId, floaterCash, amountPaise, order.id, now, now],
-        (err) => (err ? reject(err) : resolve())
-      );
+    await convexMutation("admin:createFloatingPayment", {
+      worker_id: workerId,
+      amount: floaterCash,
+      amount_paise: amountPaise,
+      razorpay_order_id: order.id,
     });
 
     return NextResponse.json({

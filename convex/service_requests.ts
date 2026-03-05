@@ -75,6 +75,32 @@ export const updatePaymentDetails = mutationGeneric({
   },
 });
 
+export const addFeedback = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    const row = await ctx.db.get(args.id);
+    if (!row) throw new Error("Service request not found");
+    await ctx.db.patch(row._id, {
+      rating: Number(args.rating),
+      review_comment: String(args.review_comment || ""),
+    });
+    return { ok: true, assigned_worker: row.assigned_worker };
+  },
+});
+
+export const recentCompletedRatingsForWorker = queryGeneric({
+  handler: async (ctx, args: any) => {
+    const rows = await ctx.db.query("service_requests").collect();
+    return rows
+      .filter((r) => String(r.assigned_worker || "") === String(args.worker_id))
+      .filter((r) => String(r.status || "") === "Completed" && r.rating != null)
+      .sort((a, b) =>
+        String(b.completed_at || b.created_at || "").localeCompare(String(a.completed_at || a.created_at || ""))
+      )
+      .slice(0, 10)
+      .map((r) => Number(r.rating || 0));
+  },
+});
+
 export const updateStatus = mutationGeneric({
   handler: async (ctx, args: any) => {
     const row = await ctx.db.get(args.id);

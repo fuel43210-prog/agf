@@ -1,22 +1,12 @@
 import { NextResponse } from "next/server";
-const { getDB } = require("../../../../../../database/db");
+const { convexQuery } = require("../../../../../lib/convexServer");
 
 export async function GET(request, { params }) {
     try {
         const { id } = await params;
         if (!id) return NextResponse.json({ error: "Missing worker ID" }, { status: 400 });
 
-        const db = getDB();
-        const reviews = await new Promise((resolve, reject) => {
-            db.all(
-                "SELECT id, rating, review_comment, completed_at FROM service_requests WHERE assigned_worker = ? AND rating IS NOT NULL ORDER BY COALESCE(completed_at, created_at) DESC LIMIT 10",
-                [id],
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                }
-            );
-        });
+        const reviews = await convexQuery("admin:getWorkerReviews", { worker_id: id });
 
         return NextResponse.json(reviews);
     } catch (err) {

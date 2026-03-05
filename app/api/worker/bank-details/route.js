@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
-const { getDB } = require("../../../../database/db");
 const { requireWorker, errorResponse, successResponse } = require("../../../../database/auth-middleware");
-const { encrypt, maskValue } = require("../../../utils/encryption");
+const { encrypt, decrypt, maskValue } = require("../../../utils/encryption");
+const { convexQuery, convexMutation } = require("../../../lib/convexServer");
 
 /** GET worker bank details (masked) */
 export async function GET(request) {
     const auth = requireWorker(request);
     if (!auth) return errorResponse("Unauthorized", 401);
 
-    const db = getDB();
     try {
-        const bankDetails = await new Promise((resolve, reject) => {
-            db.get(
-                "SELECT account_holder_name, account_number, ifsc_code, bank_name, is_bank_verified, rejection_reason FROM worker_bank_details WHERE worker_id = ?",
-                [auth.id],
-                (err, row) => (err ? reject(err) : resolve(row))
-            );
-        });
+        const bankDetails = await convexQuery("admin:getWorkerBankDetails", { worker_id: auth.id });
 
         if (!bankDetails) {
             return successResponse({ bank_details: null });
@@ -27,8 +20,8 @@ export async function GET(request) {
         return successResponse({
             bank_details: {
                 ...bankDetails,
-                account_number: maskValue(bankDetails.account_number, 4),
-                ifsc_code: maskValue(bankDetails.ifsc_code, 4),
+                account_number: maskValue(decrypt(bankDetails.account_number), 4),
+                ifsc_code: maskValue(decrypt(bankDetails.ifsc_code), 4),
             }
         });
     } catch (err) {
@@ -67,35 +60,20 @@ export async function POST(request) {
         const encryptedAccount = encrypt(normalizedAccountNumber);
         const encryptedIFSC = encrypt(normalizedIfsc);
 
-        const db = getDB();
-
-        // Check if worker already has bank details
-        const existing = await new Promise((resolve) => {
-            db.get("SELECT id, is_bank_verified FROM worker_bank_details WHERE worker_id = ?", [auth.id], (err, row) => resolve(row));
-        });
-
-        if (existing && existing.is_bank_verified === 1) {
-            return errorResponse("Bank details are already verified and cannot be changed. Contact support to update.", 403);
-        }
-
-        await new Promise((resolve, reject) => {
-            if (existing) {
-                db.run(
-                    `UPDATE worker_bank_details 
-           SET account_holder_name = ?, account_number = ?, ifsc_code = ?, bank_name = ?, is_bank_verified = 0, rejection_reason = NULL, updated_at = CURRENT_TIMESTAMP
-           WHERE worker_id = ?`,
-                    [normalizedAccountHolderName, encryptedAccount, encryptedIFSC, normalizedBankName, auth.id],
-                    (err) => (err ? reject(err) : resolve())
-                );
-            } else {
-                db.run(
-                    `INSERT INTO worker_bank_details (worker_id, account_holder_name, account_number, ifsc_code, bank_name)
-           VALUES (?, ?, ?, ?, ?)`,
-                    [auth.id, normalizedAccountHolderName, encryptedAccount, encryptedIFSC, normalizedBankName],
-                    (err) => (err ? reject(err) : resolve())
-                );
+        try {
+            await convexMutation("admin:upsertWorkerBankDetailsForWorker", {
+                worker_id: auth.id,
+                account_holder_name: normalizedAccountHolderName,
+                account_number: encryptedAccount,
+                ifsc_code: encryptedIFSC,
+                bank_name: normalizedBankName,
+            });
+        } catch (err) {
+            if (/already verified/i.test(String(err?.message || ""))) {
+                return errorResponse("Bank details are already verified and cannot be changed. Contact support to update.", 403);
             }
-        });
+            throw err;
+        }
 
         return successResponse({ message: "Bank details submitted for verification" });
     } catch (err) {

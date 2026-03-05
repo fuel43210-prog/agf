@@ -8,12 +8,14 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as bootstrap from "../bootstrap.js";
 import type * as cod from "../cod.js";
 import type * as fuel_station_ops from "../fuel_station_ops.js";
 import type * as fuel_stations from "../fuel_stations.js";
 import type * as logs from "../logs.js";
+import type * as password_reset from "../password_reset.js";
 import type * as payments from "../payments.js";
 import type * as service_requests from "../service_requests.js";
 import type * as users from "../users.js";
@@ -26,12 +28,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   auth: typeof auth;
   bootstrap: typeof bootstrap;
   cod: typeof cod;
   fuel_station_ops: typeof fuel_station_ops;
   fuel_stations: typeof fuel_stations;
   logs: typeof logs;
+  password_reset: typeof password_reset;
   payments: typeof payments;
   service_requests: typeof service_requests;
   users: typeof users;

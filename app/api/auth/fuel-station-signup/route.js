@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-const { getDB, getLocalDateTimeString } = require("../../../../database/db");
 const bcrypt = require("bcryptjs");
+const { convexMutation } = require("../../../lib/convexServer");
 
 export async function POST(request) {
   try {
@@ -49,89 +49,36 @@ export async function POST(request) {
       );
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const db = getDB();
-    const createdAt = getLocalDateTimeString();
-
-    // Start transaction-like behavior (SQLite)
     try {
-      // 1. Create user account with Fuel_Station role
-      const insertStationUser = (role) => new Promise((resolve, reject) => {
-        db.run(
-          `INSERT INTO users (email, password, first_name, last_name, phone_number, role, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [email, hashedPassword, station_name, "Station", phone_number, role, createdAt, createdAt],
-          function (err) {
-            if (err) reject(err);
-            else resolve({ id: this.lastID });
-          }
-        );
+      const userResult = await convexMutation("users:signup", {
+        email,
+        password: hashedPassword,
+        first_name: station_name,
+        last_name: "Station",
+        phone_number,
+        role: "Fuel_Station",
       });
 
-      let userResult;
-      try {
-        userResult = await insertStationUser("Station");
-      } catch (err) {
-        // Backward compatibility: some older DBs only allow User/Admin in users.role.
-        if (String(err?.message || "").includes("role IN ('User', 'Admin')")) {
-          userResult = await insertStationUser("User");
-        } else {
-          throw err;
-        }
-      }
-
-      // 2. Create fuel station profile
-      const fuelStationResult = await new Promise((resolve, reject) => {
-        db.run(
-          `INSERT INTO fuel_stations (
-            user_id, station_name, email, phone_number, address,
-            latitude, longitude, cod_enabled, is_verified, is_open,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, 1, ?, ?)`,
-          [
-            userResult.id,
-            station_name,
-            email,
-            phone_number,
-            address,
-            latitude,
-            longitude,
-            createdAt,
-            createdAt,
-          ],
-          function (err) {
-            if (err) reject(err);
-            else resolve({ id: this.lastID });
-          }
-        );
+      const fuelStationResult = await convexMutation("fuel_stations:create", {
+        user_id: userResult.id,
+        station_name,
+        email,
+        phone_number,
+        address,
+        latitude,
+        longitude,
+        cod_enabled: true,
+        is_verified: false,
+        is_open: true,
       });
 
-      // 3. Initialize stock for petrol and diesel
-      const fuelTypes = ["petrol", "diesel"];
-      for (const fuelType of fuelTypes) {
-        await new Promise((resolve, reject) => {
-          db.run(
-            `INSERT INTO fuel_station_stock (fuel_station_id, fuel_type, stock_litres, created_at, updated_at)
-             VALUES (?, ?, 0, ?, ?)`,
-            [fuelStationResult.id, fuelType, createdAt, createdAt],
-            (err) => {
-              if (err) reject(err);
-              else resolve();
-            }
-          );
-        });
-      }
-
-      // Log activity
-      db.run(
-        `INSERT INTO activity_log (type, message, entity_type, entity_id, created_at)
-         VALUES (?, ?, ?, ?, ?)`,
-        ["fuel_station_created", `Fuel station ${station_name} created`, "Station", fuelStationResult.id, createdAt],
-        (err) => {
-          if (err) console.error("Activity log error:", err);
-        }
-      );
+      await convexMutation("logs:addActivity", {
+        type: "fuel_station_created",
+        message: `Fuel station ${station_name} created`,
+        entity_type: "Station",
+        entity_id: String(fuelStationResult.id),
+      });
 
       return NextResponse.json(
         {
@@ -145,10 +92,7 @@ export async function POST(request) {
     } catch (err) {
       const message = String(err?.message || "");
       const isDuplicateEmail =
-        err?.code === "23505" ||
-        err?.code === "ER_DUP_ENTRY" ||
-        err?.errno === 1062 ||
-        /unique constraint|duplicate key|\bunique\b/i.test(message);
+        /unique constraint|duplicate key|\bunique\b|email already exists/i.test(message);
 
       if (isDuplicateEmail) {
         return NextResponse.json(
