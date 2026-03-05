@@ -1,10 +1,3 @@
-import Razorpay from 'razorpay';
-
-const razorpay = new Razorpay({
-    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
-
 function isMockPayoutMode() {
     const accountNumber = process.env.RAZORPAY_ACCOUNT_NUMBER || '';
     const forceMock = String(process.env.FORCE_MOCK_PAYOUTS || '').toLowerCase();

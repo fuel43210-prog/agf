@@ -3,10 +3,12 @@ import Razorpay from "razorpay";
 const { getDB, getLocalDateTimeString } = require("../../../../../database/db");
 const { requireWorker } = require("../../../../../database/auth-middleware");
 
-const razorpay = new Razorpay({
-  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "placeholder_secret",
-});
+function getRazorpayClient() {
+  const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) return null;
+  return new Razorpay({ key_id: keyId, key_secret: keySecret });
+}
 
 function ensureFloatingCashPaymentsTable(db) {
   return new Promise((resolve) => {
@@ -33,6 +35,11 @@ function ensureFloatingCashPaymentsTable(db) {
 
 export async function POST(request) {
   try {
+    const razorpay = getRazorpayClient();
+    if (!razorpay) {
+      return NextResponse.json({ error: "Razorpay is not configured on server." }, { status: 500 });
+    }
+
     const auth = requireWorker(request);
     if (!auth?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
