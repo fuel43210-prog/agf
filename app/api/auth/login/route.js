@@ -1,57 +1,7 @@
 import { NextResponse } from "next/server";
-const { getDB, getLocalDateTimeString } = require("../../../../database/db");
 const { generateToken } = require("../../../../database/auth-middleware");
 const bcrypt = require("bcryptjs");
-
-async function ensureAuthTables(db) {
-  const statements = [
-    `CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password VARCHAR(255) NOT NULL,
-      first_name VARCHAR(100) NOT NULL,
-      last_name VARCHAR(100) NOT NULL,
-      phone_number VARCHAR(20),
-      role VARCHAR(20) DEFAULT 'User',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE TABLE IF NOT EXISTS workers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password VARCHAR(255) NOT NULL,
-      first_name VARCHAR(100) NOT NULL,
-      last_name VARCHAR(100) NOT NULL,
-      phone_number VARCHAR(20),
-      status VARCHAR(20) DEFAULT 'Available',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE TABLE IF NOT EXISTS fuel_stations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER UNIQUE,
-      station_name VARCHAR(255),
-      is_verified INTEGER DEFAULT 0,
-      cod_enabled INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE TABLE IF NOT EXISTS activity_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type VARCHAR(50) NOT NULL,
-      message TEXT,
-      entity_type VARCHAR(50),
-      entity_id INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`,
-  ];
-
-  for (const sql of statements) {
-    await new Promise((resolve, reject) => {
-      db.run(sql, (err) => (err ? reject(err) : resolve()));
-    });
-  }
-}
+const { convexQuery, convexMutation } = require("../../../lib/convexServer");
 
 export async function POST(request) {
   try {
@@ -65,69 +15,7 @@ export async function POST(request) {
       );
     }
 
-    const db = getDB();
-    await ensureAuthTables(db);
-    
-    // Route to appropriate table based on role
-    let user = null;
-    let userRole = role;
-
-    switch (role) {
-      case "Worker":
-        user = await new Promise((resolve) => {
-          db.get(
-            "SELECT id, email, password, first_name, last_name, phone_number, status FROM workers WHERE email = ?",
-            [email],
-            (err, row) => resolve(row || null)
-          );
-        });
-        if (user) userRole = "Worker";
-        break;
-
-      case "Fuel_Station":
-        // Check fuel_stations table
-        const fuelStationUser = await new Promise((resolve) => {
-          db.get(
-            `SELECT fs.id as fs_id, u.id, u.password, u.email, u.first_name, u.last_name, u.phone_number, u.role,
-                    fs.station_name, fs.is_verified, fs.cod_enabled
-             FROM fuel_stations fs
-             JOIN users u ON fs.user_id = u.id
-             WHERE u.email = ?`,
-            [email],
-            (err, row) => resolve(row || null)
-          );
-        });
-        if (fuelStationUser) {
-          user = fuelStationUser;
-          userRole = "Fuel_Station";
-        }
-        break;
-
-      case "Admin":
-      case "User":
-      default:
-        user = await new Promise((resolve) => {
-          db.get(
-            "SELECT id, email, password, first_name, last_name, phone_number, role FROM users WHERE email = ?",
-            [email],
-            (err, row) => resolve(row || null)
-          );
-        });
-        if (user && role === "Admin" && user.role !== "Admin") {
-          return NextResponse.json(
-            { success: false, error: "You are not an admin" },
-            { status: 403 }
-          );
-        }
-        if (user && role === "User" && user.role !== "User") {
-          return NextResponse.json(
-            { success: false, error: "This account is not a user account" },
-            { status: 403 }
-          );
-        }
-        userRole = role;
-        break;
-    }
+    const user = await convexQuery("auth:getLoginAccount", { role, email });
 
     if (!user) {
       return NextResponse.json(
@@ -152,18 +40,17 @@ export async function POST(request) {
     const token = generateToken({
       id: user.id,
       email: user.email,
-      role: userRole,
+      role: user.role,
     });
 
     // Log login activity
-    const activityMessage = `${userRole} login`;
-    db.run(
-      `INSERT INTO activity_log (type, message, entity_type, entity_id) VALUES (?, ?, ?, ?)`,
-      ["login", activityMessage, userRole, user.id],
-      (err) => {
-        if (err) console.error("Activity log error:", err);
-      }
-    );
+    const activityMessage = `${user.role} login`;
+    await convexMutation("logs:addActivity", {
+      type: "login",
+      message: activityMessage,
+      entity_type: user.role,
+      entity_id: String(user.id),
+    });
 
     return NextResponse.json(
       {
@@ -172,11 +59,11 @@ export async function POST(request) {
         user: {
           id: user.id,
           email: user.email,
-          role: userRole,
+          role: user.role,
           first_name: user.first_name,
           last_name: user.last_name,
           phone_number: user.phone_number || "",
-          ...(userRole === "Fuel_Station" && {
+          ...(user.role === "Fuel_Station" && {
             station_name: user.station_name,
             is_verified: user.is_verified,
             cod_enabled: user.cod_enabled,

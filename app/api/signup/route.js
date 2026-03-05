@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-const { getDB, getLocalDateTimeString } = require("../../../database/db");
 const bcrypt = require("bcryptjs");
 const { validatePhoneByCountry } = require("../../signup/phoneValidation");
+const { convexMutation } = require("../../lib/convexServer");
 
 export async function POST(request) {
   try {
@@ -51,26 +51,27 @@ export async function POST(request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const db = getDB();
-
     const isWorker = role === "Worker";
-    const table = isWorker ? "workers" : "users";
 
-    const createdAt = getLocalDateTimeString();
-    const sql = isWorker
-      ? "INSERT INTO workers (email, password, first_name, last_name, phone_number, status, created_at) VALUES (?, ?, ?, ?, ?, 'Available', ?)"
-      : "INSERT INTO users (email, password, first_name, last_name, phone_number, role, created_at) VALUES (?, ?, ?, ?, ?, 'User', ?)";
-
-    const params = [email, hashedPassword, firstName, lastName, phoneCheck.fullPhone, createdAt];
-
-    const result = await new Promise((resolve, reject) => {
-      db.run(sql, params, function (err) {
-        if (err) {
-          return reject(err);
-        }
-        resolve({ id: this.lastID });
+    let result;
+    if (isWorker) {
+      result = await convexMutation("workers:createWorker", {
+        email,
+        password: hashedPassword,
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: phoneCheck.fullPhone,
       });
-    });
+    } else {
+      result = await convexMutation("users:signup", {
+        email,
+        password: hashedPassword,
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: phoneCheck.fullPhone,
+        role: "User",
+      });
+    }
 
     const { generateToken } = require("../../../database/auth-middleware");
     const token = generateToken({
@@ -91,10 +92,7 @@ export async function POST(request) {
   } catch (err) {
     const message = String(err?.message || "");
     const isDuplicateEmail =
-      err?.code === "23505" ||
-      err?.code === "ER_DUP_ENTRY" ||
-      err?.errno === 1062 ||
-      /unique constraint|duplicate key|\bunique\b/i.test(message);
+      /already exists|unique constraint|duplicate key|\bunique\b/i.test(message);
 
     if (isDuplicateEmail) {
       return NextResponse.json(

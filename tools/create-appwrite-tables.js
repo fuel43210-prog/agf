@@ -50,15 +50,10 @@ function sanitizeId(name) {
 async function createTable(tablesDB, databaseId, name) {
   const tableId = sanitizeId(name);
   try {
-    // Newer Appwrite SDK TablesDB API style.
-    if (typeof tablesDB.create === "function") {
-      return await tablesDB.create({ databaseId, tableId, name });
-    }
-    // Fallback for older variants if present.
     if (typeof tablesDB.createTable === "function") {
       return await tablesDB.createTable({ databaseId, tableId, name });
     }
-    throw new Error("No supported table-create method found on TablesDB client.");
+    throw new Error("No supported createTable method found on TablesDB client.");
   } catch (err) {
     const message = String(err?.message || "");
     if (/already exists|conflict|409/i.test(message)) {
@@ -123,4 +118,3 @@ main().catch((err) => {
   console.error("Appwrite table bootstrap failed:", err?.message || err);
   process.exit(1);
 });
-
