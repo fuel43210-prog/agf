@@ -17,12 +17,22 @@ function readEnv(name) {
   return raw;
 }
 
+function readEnvAny(names) {
+  for (const name of names) {
+    const value = readEnv(name);
+    if (value) return value;
+  }
+  return "";
+}
+
 function hasDatabaseConfig() {
-  const hasUrl = Boolean(readEnv("DATABASE_URL"));
+  const hasUrl = Boolean(
+    readEnvAny(["DATABASE_URL", "APPWRITE_DATABASE_URL", "APPWRITE_POSTGRES_URL"])
+  );
   const hasParts = Boolean(
-    readEnv("DB_HOST") &&
-    readEnv("DB_USER") &&
-    readEnv("DB_NAME")
+    readEnvAny(["DB_HOST", "APPWRITE_DB_HOST", "APPWRITE_POSTGRES_HOST"]) &&
+    readEnvAny(["DB_USER", "APPWRITE_DB_USER", "APPWRITE_POSTGRES_USER"]) &&
+    readEnvAny(["DB_NAME", "APPWRITE_DB_NAME", "APPWRITE_POSTGRES_DATABASE"])
   );
   return hasUrl || hasParts;
 }
@@ -30,7 +40,7 @@ function hasDatabaseConfig() {
 function assertDatabaseConfig() {
   if (hasDatabaseConfig()) return;
   throw new Error(
-    "Database config missing. Set DATABASE_URL or DB_HOST/DB_USER/DB_PASSWORD/DB_NAME/DB_PORT."
+    "Database config missing. Set DATABASE_URL (or APPWRITE_DATABASE_URL) or DB_HOST/DB_USER/DB_PASSWORD/DB_NAME/DB_PORT."
   );
 }
 
@@ -39,7 +49,7 @@ function detectClient() {
   if (explicit === "sqlite" || explicit === "mysql" || explicit === "postgres" || explicit === "postgresql") {
     return explicit === "postgresql" ? "postgres" : explicit;
   }
-  const url = readEnv("DATABASE_URL").toLowerCase();
+  const url = readEnvAny(["DATABASE_URL", "APPWRITE_DATABASE_URL", "APPWRITE_POSTGRES_URL"]).toLowerCase();
   if (url.startsWith("mysql://")) return "mysql";
   if (url.startsWith("postgres://") || url.startsWith("postgresql://")) return "postgres";
   return "sqlite";
@@ -225,15 +235,15 @@ function createDemoAdapter() {
 
 function createMySQLAdapter() {
   assertDatabaseConfig();
-  const databaseUrl = readEnv("DATABASE_URL");
+  const databaseUrl = readEnvAny(["DATABASE_URL", "APPWRITE_DATABASE_URL", "APPWRITE_POSTGRES_URL"]);
   const pool = databaseUrl
     ? mysql.createPool(databaseUrl)
     : mysql.createPool({
-        host: readEnv("DB_HOST"),
-        user: readEnv("DB_USER"),
-        password: readEnv("DB_PASSWORD") || "",
-        database: readEnv("DB_NAME"),
-        port: Number(readEnv("DB_PORT") || 3306),
+        host: readEnvAny(["DB_HOST", "APPWRITE_DB_HOST", "APPWRITE_POSTGRES_HOST"]),
+        user: readEnvAny(["DB_USER", "APPWRITE_DB_USER", "APPWRITE_POSTGRES_USER"]),
+        password: readEnvAny(["DB_PASSWORD", "APPWRITE_DB_PASSWORD", "APPWRITE_POSTGRES_PASSWORD"]) || "",
+        database: readEnvAny(["DB_NAME", "APPWRITE_DB_NAME", "APPWRITE_POSTGRES_DATABASE"]),
+        port: Number(readEnvAny(["DB_PORT", "APPWRITE_DB_PORT", "APPWRITE_POSTGRES_PORT"]) || 3306),
         waitForConnections: true,
         connectionLimit: Number(readEnv("DB_POOL_SIZE") || 10),
       });
@@ -309,9 +319,13 @@ function createMySQLAdapter() {
 
 function createPostgresAdapter() {
   assertDatabaseConfig();
-  const dbUrlRaw = readEnv("DATABASE_URL");
-  const dbHost = readEnv("DB_HOST");
-  const isSupabase = /supabase\.com/i.test(dbUrlRaw) || /supabase\.com/i.test(dbHost);
+  const dbUrlRaw = readEnvAny(["DATABASE_URL", "APPWRITE_DATABASE_URL", "APPWRITE_POSTGRES_URL"]);
+  const dbHost = readEnvAny(["DB_HOST", "APPWRITE_DB_HOST", "APPWRITE_POSTGRES_HOST"]);
+  const isManagedPostgres =
+    /supabase\.com/i.test(dbUrlRaw) ||
+    /supabase\.com/i.test(dbHost) ||
+    /appwrite/i.test(dbUrlRaw) ||
+    /appwrite/i.test(dbHost);
   const urlSslMode = (() => {
     try {
       if (!dbUrlRaw) return "";
@@ -323,7 +337,7 @@ function createPostgresAdapter() {
   const sslEnabled =
     readEnv("DB_SSL").toLowerCase() === "true" ||
     /sslmode=require/i.test(dbUrlRaw) ||
-    isSupabase ||
+    isManagedPostgres ||
     urlSslMode === "require" ||
     urlSslMode === "verify-ca" ||
     urlSslMode === "verify-full" ||
@@ -375,11 +389,11 @@ function createPostgresAdapter() {
   const pool = new Pool(
     poolConfig || {
       ...baseConfig,
-      host: readEnv("DB_HOST"),
-      user: readEnv("DB_USER"),
-      password: readEnv("DB_PASSWORD") || "",
-      database: readEnv("DB_NAME"),
-      port: Number(readEnv("DB_PORT") || 5432),
+      host: readEnvAny(["DB_HOST", "APPWRITE_DB_HOST", "APPWRITE_POSTGRES_HOST"]),
+      user: readEnvAny(["DB_USER", "APPWRITE_DB_USER", "APPWRITE_POSTGRES_USER"]),
+      password: readEnvAny(["DB_PASSWORD", "APPWRITE_DB_PASSWORD", "APPWRITE_POSTGRES_PASSWORD"]) || "",
+      database: readEnvAny(["DB_NAME", "APPWRITE_DB_NAME", "APPWRITE_POSTGRES_DATABASE"]),
+      port: Number(readEnvAny(["DB_PORT", "APPWRITE_DB_PORT", "APPWRITE_POSTGRES_PORT"]) || 5432),
     }
   );
   console.log("Connected to PostgreSQL database");
