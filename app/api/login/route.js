@@ -41,6 +41,7 @@ export async function POST(request) {
       {
         success: true,
         id: user.id,
+        serial_id: user.serial_id ?? null,
         role: finalRole,
         email: user.email,
         first_name: user.first_name,
@@ -59,4 +60,3 @@ export async function POST(request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-

@@ -58,6 +58,7 @@ export async function POST(request) {
         token,
         user: {
           id: user.id,
+          serial_id: user.serial_id ?? null,
           email: user.email,
           role: user.role,
           first_name: user.first_name,

@@ -12,7 +12,14 @@ export const signup = mutationGeneric({
       throw new Error("Email already exists");
     }
 
+    const allUsers = await ctx.db.query("users").collect();
+    const maxSerial = allUsers.reduce((max, u) => {
+      const n = Number((u as any).serial_id || 0);
+      return n > max ? n : max;
+    }, 0);
+
     const id = await ctx.db.insert("users", {
+      serial_id: maxSerial + 1,
       email: String(args.email).toLowerCase(),
       password: args.password,
       first_name: args.first_name,
@@ -28,6 +35,30 @@ export const signup = mutationGeneric({
     });
 
     return { id };
+  },
+});
+
+export const assignMissingSerialIds = mutationGeneric({
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    const sorted = users
+      .slice()
+      .sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
+
+    let maxSerial = sorted.reduce((max, u) => {
+      const n = Number((u as any).serial_id || 0);
+      return n > max ? n : max;
+    }, 0);
+
+    let updated = 0;
+    for (const user of sorted) {
+      if ((user as any).serial_id == null) {
+        maxSerial += 1;
+        await ctx.db.patch(user._id, { serial_id: maxSerial, updated_at: nowIso() });
+        updated += 1;
+      }
+    }
+    return { ok: true, updated };
   },
 });
 

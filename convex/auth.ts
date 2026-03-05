@@ -35,6 +35,7 @@ export const getLoginAccount = queryGeneric({
       if (!station) return null;
       return {
         id: user._id,
+        serial_id: (user as any).serial_id ?? null,
         email: user.email,
         password: user.password,
         first_name: user.first_name,
@@ -54,6 +55,7 @@ export const getLoginAccount = queryGeneric({
     if (!user) return null;
     return {
       id: user._id,
+      serial_id: (user as any).serial_id ?? null,
       email: user.email,
       password: user.password,
       first_name: user.first_name,
@@ -63,4 +65,3 @@ export const getLoginAccount = queryGeneric({
     };
   },
 });
-

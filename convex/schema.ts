@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 export default defineSchema({
   users: defineTable({
+    serial_id: v.optional(v.number()),
     email: v.string(),
     password: v.string(),
     first_name: v.string(),
@@ -18,7 +19,9 @@ export default defineSchema({
     cod_disabled_until: v.optional(v.string()),
     created_at: v.optional(v.string()),
     updated_at: v.optional(v.string()),
-  }).index("by_email", ["email"]),
+  })
+    .index("by_email", ["email"])
+    .index("by_serial_id", ["serial_id"]),
 
   workers: defineTable({
     email: v.string(),
@@ -351,4 +354,3 @@ export default defineSchema({
     reported_at: v.string(),
   }),
 });
-
