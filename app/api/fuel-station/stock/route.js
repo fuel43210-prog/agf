@@ -1,32 +1,25 @@
 import { NextResponse } from "next/server";
-const { getDB, getLocalDateTimeString } = require("../../../../database/db");
+const { convexQuery, convexMutation } = require("../../../lib/convexServer");
 
-async function hasColumn(db, tableName, columnName) {
-  const columns = await new Promise((resolve, reject) => {
-    db.all(`PRAGMA table_info(${tableName})`, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
+async function resolveStationId(rawId) {
+  const station = await convexQuery("fuel_station_ops:resolveStation", {
+    fuel_station_id: rawId,
+    user_id: rawId,
   });
-  return columns.some((col) => col.name === columnName);
+  return station?.id || null;
 }
 
-async function resolveStationId(db, rawId) {
-  const byId = await new Promise((resolve) => {
-    db.get("SELECT id FROM fuel_stations WHERE id = ?", [rawId], (err, row) => resolve(row || null));
-  });
-  if (byId?.id) return byId.id;
-
-  const hasUserId = await hasColumn(db, "fuel_stations", "user_id");
-  if (!hasUserId) return null;
-
-  const byUserId = await new Promise((resolve) => {
-    db.get("SELECT id FROM fuel_stations WHERE user_id = ?", [rawId], (err, row) => resolve(row || null));
-  });
-  return byUserId?.id || null;
+async function ensureDefaultStocks(fuel_station_id) {
+  const existing = await convexQuery("fuel_station_ops:getStocks", { fuel_station_id });
+  const known = new Set((existing || []).map((s) => String(s.fuel_type || "").toLowerCase()));
+  if (!known.has("petrol")) {
+    await convexMutation("fuel_station_ops:upsertStock", { fuel_station_id, fuel_type: "petrol", stock_litres: 0 });
+  }
+  if (!known.has("diesel")) {
+    await convexMutation("fuel_station_ops:upsertStock", { fuel_station_id, fuel_type: "diesel", stock_litres: 0 });
+  }
 }
 
-// Get stock levels for a fuel station
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -39,90 +32,21 @@ export async function GET(request) {
       );
     }
 
-    const db = getDB();
-    const supportsLastRefilledAt = await hasColumn(db, "fuel_station_stock", "last_refilled_at");
-    const selectSql = supportsLastRefilledAt
-      ? `SELECT id, fuel_type, stock_litres, last_refilled_at, updated_at
-         FROM fuel_station_stock
-         WHERE fuel_station_id = ?
-         ORDER BY fuel_type`
-      : `SELECT id, fuel_type, stock_litres, NULL as last_refilled_at, updated_at
-         FROM fuel_station_stock
-         WHERE fuel_station_id = ?
-         ORDER BY fuel_type`;
-
-    const resolvedStationId = await resolveStationId(db, fuel_station_id);
+    const resolvedStationId = await resolveStationId(fuel_station_id);
     if (!resolvedStationId) {
-      return NextResponse.json(
-        { success: true, stocks: [] },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: true, stocks: [] }, { status: 200 });
     }
 
-    // Get stock levels
-    let stocks = await new Promise((resolve) => {
-      db.all(
-        selectSql,
-        [resolvedStationId],
-        (err, rows) => resolve(rows || [])
-      );
-    });
+    await ensureDefaultStocks(resolvedStationId);
+    const stocks = (await convexQuery("fuel_station_ops:getStocks", { fuel_station_id: resolvedStationId })) || [];
 
-    // If no stocks found, initialize them
-    if (stocks.length === 0) {
-      const updatedAt = getLocalDateTimeString();
-      const types = ['petrol', 'diesel'];
-
-      for (const type of types) {
-        await new Promise((resolve, reject) => {
-          if (supportsLastRefilledAt) {
-            db.run(
-              `INSERT INTO fuel_station_stock (fuel_station_id, fuel_type, stock_litres, last_refilled_at, updated_at)
-               VALUES (?, ?, ?, ?, ?)`,
-              [resolvedStationId, type, 0, updatedAt, updatedAt],
-              (err) => {
-                if (err) reject(err);
-                else resolve();
-              }
-            );
-          } else {
-            db.run(
-              `INSERT INTO fuel_station_stock (fuel_station_id, fuel_type, stock_litres, updated_at)
-               VALUES (?, ?, ?, ?)`,
-              [resolvedStationId, type, 0, updatedAt],
-              (err) => {
-                if (err) reject(err);
-                else resolve();
-              }
-            );
-          }
-        });
-      }
-
-      // Re-fetch stocks
-      stocks = await new Promise((resolve) => {
-        db.all(
-          selectSql,
-          [resolvedStationId],
-          (err, rows) => resolve(rows || [])
-        );
-      });
-    }
-
-    return NextResponse.json(
-      { success: true, stocks },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, stocks }, { status: 200 });
   } catch (err) {
     console.error("Get stock error:", err);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
 
-// Update stock levels
 export async function PATCH(request) {
   try {
     const body = await request.json();
@@ -135,7 +59,6 @@ export async function PATCH(request) {
       );
     }
 
-    // Validate stock is non-negative
     if (typeof stock_litres !== "number" || stock_litres < 0) {
       return NextResponse.json(
         { success: false, error: "stock_litres must be a non-negative number" },
@@ -143,95 +66,24 @@ export async function PATCH(request) {
       );
     }
 
-    const db = getDB();
-    const updatedAt = getLocalDateTimeString();
-    const supportsLastRefilledAt = await hasColumn(db, "fuel_station_stock", "last_refilled_at");
-
-    const resolvedStationId = await resolveStationId(db, fuel_station_id);
+    const resolvedStationId = await resolveStationId(fuel_station_id);
     if (!resolvedStationId) {
-      return NextResponse.json(
-        { success: false, error: "Fuel station not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "Fuel station not found" }, { status: 404 });
     }
 
-    // Update stock
-    const result = await new Promise((resolve, reject) => {
-      const sql = supportsLastRefilledAt
-        ? `UPDATE fuel_station_stock 
-           SET stock_litres = ?, last_refilled_at = ?, updated_at = ?
-           WHERE fuel_station_id = ? AND fuel_type = ?`
-        : `UPDATE fuel_station_stock 
-           SET stock_litres = ?, updated_at = ?
-           WHERE fuel_station_id = ? AND fuel_type = ?`;
-      const params = supportsLastRefilledAt
-        ? [stock_litres, updatedAt, updatedAt, resolvedStationId, fuel_type]
-        : [stock_litres, updatedAt, resolvedStationId, fuel_type];
-
-      db.run(sql, params, function (err) {
-        if (err) reject(err);
-        else resolve({ changes: this.changes });
-      });
+    const result = await convexMutation("fuel_station_ops:upsertStock", {
+      fuel_station_id: resolvedStationId,
+      fuel_type,
+      stock_litres,
     });
 
-    if (result.changes === 0) {
-      // Create missing stock row, then retry update once.
-      await new Promise((resolve, reject) => {
-        const insertSql = supportsLastRefilledAt
-          ? `INSERT INTO fuel_station_stock (fuel_station_id, fuel_type, stock_litres, last_refilled_at, updated_at)
-             VALUES (?, ?, 0, ?, ?)`
-          : `INSERT INTO fuel_station_stock (fuel_station_id, fuel_type, stock_litres, updated_at)
-             VALUES (?, ?, 0, ?)`;
-        const params = supportsLastRefilledAt
-          ? [resolvedStationId, fuel_type, updatedAt, updatedAt]
-          : [resolvedStationId, fuel_type, updatedAt];
-        db.run(insertSql, params, (err) => (err ? reject(err) : resolve()));
-      });
-
-      const retry = await new Promise((resolve, reject) => {
-        const retrySql = supportsLastRefilledAt
-          ? `UPDATE fuel_station_stock
-             SET stock_litres = ?, last_refilled_at = ?, updated_at = ?
-             WHERE fuel_station_id = ? AND fuel_type = ?`
-          : `UPDATE fuel_station_stock
-             SET stock_litres = ?, updated_at = ?
-             WHERE fuel_station_id = ? AND fuel_type = ?`;
-        const retryParams = supportsLastRefilledAt
-          ? [stock_litres, updatedAt, updatedAt, resolvedStationId, fuel_type]
-          : [stock_litres, updatedAt, resolvedStationId, fuel_type];
-        db.run(retrySql, retryParams, function (err) {
-          if (err) reject(err);
-          else resolve({ changes: this.changes });
-        });
-      });
-
-      if (Number(retry.changes || 0) === 0) {
-        return NextResponse.json(
-          { success: false, error: `Stock record for ${fuel_type} not found` },
-          { status: 404 }
-        );
-      }
-    }
-
-    // Log in fuel station ledger
-    db.run(
-      `INSERT INTO fuel_station_ledger (
-        fuel_station_id, transaction_type, amount, description,
-        status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        resolvedStationId,
-        "stock_update",
-        0,
-        `Stock updated for ${fuel_type}: ${stock_litres} litres`,
-        "completed",
-        updatedAt,
-        updatedAt,
-      ],
-      (err) => {
-        if (err) console.error("Ledger log error:", err);
-      }
-    );
+    await convexMutation("fuel_station_ops:addLedgerEntry", {
+      fuel_station_id: resolvedStationId,
+      transaction_type: "stock_update",
+      amount: 0,
+      description: `Stock updated for ${fuel_type}: ${stock_litres} litres`,
+      status: "completed",
+    });
 
     return NextResponse.json(
       {
@@ -239,20 +91,16 @@ export async function PATCH(request) {
         message: "Stock updated successfully",
         fuel_type,
         stock_litres,
-        updated_at: updatedAt,
+        updated_at: result.updated_at,
       },
       { status: 200 }
     );
   } catch (err) {
     console.error("Update stock error:", err);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
 
-// Decrease stock when order is fulfilled
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -272,56 +120,15 @@ export async function POST(request) {
       );
     }
 
-    const db = getDB();
-    const updatedAt = getLocalDateTimeString();
-
-    const resolvedStationId = await resolveStationId(db, fuel_station_id);
+    const resolvedStationId = await resolveStationId(fuel_station_id);
     if (!resolvedStationId) {
-      return NextResponse.json(
-        { success: false, error: "Fuel station not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "Fuel station not found" }, { status: 404 });
     }
 
-    // Check current stock
-    const stock = await new Promise((resolve) => {
-      db.get(
-        `SELECT stock_litres FROM fuel_station_stock
-         WHERE fuel_station_id = ? AND fuel_type = ?`,
-        [resolvedStationId, fuel_type],
-        (err, row) => resolve(row || null)
-      );
-    });
-
-    if (!stock) {
-      return NextResponse.json(
-        { success: false, error: `Stock record for ${fuel_type} not found` },
-        { status: 404 }
-      );
-    }
-
-    if (stock.stock_litres < litres_picked_up) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Insufficient stock. Available: ${stock.stock_litres}L, Requested: ${litres_picked_up}L`
-        },
-        { status: 400 }
-      );
-    }
-
-    // Update stock (decrease)
-    const result = await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE fuel_station_stock 
-         SET stock_litres = stock_litres - ?, updated_at = ?
-         WHERE fuel_station_id = ? AND fuel_type = ?`,
-        [litres_picked_up, updatedAt, resolvedStationId, fuel_type],
-        function (err) {
-          if (err) reject(err);
-          else resolve({ changes: this.changes });
-        }
-      );
+    const result = await convexMutation("fuel_station_ops:decreaseStock", {
+      fuel_station_id: resolvedStationId,
+      fuel_type,
+      litres_picked_up,
     });
 
     return NextResponse.json(
@@ -330,15 +137,19 @@ export async function POST(request) {
         message: "Stock decreased successfully",
         fuel_type,
         litres_picked_up,
-        remaining_stock: stock.stock_litres - litres_picked_up,
+        remaining_stock: result.remaining_stock,
       },
       { status: 200 }
     );
   } catch (err) {
+    const msg = String(err?.message || "");
+    if (/not found/i.test(msg)) {
+      return NextResponse.json({ success: false, error: msg }, { status: 404 });
+    }
+    if (/insufficient/i.test(msg)) {
+      return NextResponse.json({ success: false, error: msg }, { status: 400 });
+    }
     console.error("Decrease stock error:", err);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

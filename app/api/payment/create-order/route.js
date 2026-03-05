@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-const { getDB } = require("../../../../database/db");
 const { calculateSettlement } = require("../../../../database/settlement-calculator");
+const { convexQuery } = require("../../../lib/convexServer");
 
 function getRazorpayClient() {
     const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
@@ -24,12 +24,7 @@ export async function POST(request) {
             return NextResponse.json({ error: "Service type is required" }, { status: 400 });
         }
 
-        const db = getDB();
-        const platformSettings = await new Promise((resolve) => {
-            db.get("SELECT is_raining FROM platform_settings WHERE id = 1", [], (err, row) => {
-                resolve(row || { is_raining: 0 });
-            });
-        });
+        const platformSettings = (await convexQuery("payments:getPlatformConfig", {})) || { is_raining: 0 };
 
         const isFuel = service_type === 'petrol' || service_type === 'diesel';
         const fuelPrice = isFuel ? Number(fuel_price) : 0;

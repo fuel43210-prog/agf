@@ -1,6 +1,6 @@
 # Next.js Login Example
 
-This project is a Next.js app with API routes and a database layer that uses direct SQL access (`pg`/`mysql2`/`sqlite3`).
+This project is a Next.js app with API routes migrating to Convex.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ npm install
 
 2. Configure environment files:
 - `.env`: app-level keys (SMTP, Razorpay, etc.)
-- `.env.local`: database and admin bootstrap keys
+- `.env.local`: Convex URL and app bootstrap keys
 
 3. Start development server:
 
@@ -20,42 +20,24 @@ npm install
 npm run dev
 ```
 
-## Appwrite database configuration
+## Convex configuration
 
-Set your Appwrite Postgres connection in `.env.local`:
+Set your Convex deployment URL in `.env.local`:
 
 ```env
-DB_CLIENT="postgres"
-
-# Preferred single URL option
-APPWRITE_DATABASE_URL="postgres://<user>:<password>@<host>:5432/<database>?sslmode=require"
-
-# Optional split config (used if APPWRITE_DATABASE_URL / DATABASE_URL is missing)
-APPWRITE_DB_HOST="<your-appwrite-postgres-host>"
-APPWRITE_DB_PORT="5432"
-APPWRITE_DB_USER="<your-db-user>"
-APPWRITE_DB_PASSWORD="<your-db-password>"
-APPWRITE_DB_NAME="<your-db-name>"
-
-# Generic fallback names (also supported)
-DATABASE_URL=""
-DB_HOST=""
-DB_PORT=""
-DB_USER=""
-DB_PASSWORD=""
-DB_NAME=""
+NEXT_PUBLIC_CONVEX_URL="https://<your-convex-deployment>.convex.cloud"
 
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="change-me"
 ```
 
-Then initialize schema/seed:
+Then sync Convex functions/schema:
 
 ```bash
-npm run setup
+npx convex dev --once
 ```
 
 ## Notes
 
-- The app does not require Supabase client SDK.
-- `database/db.js` now supports both generic DB vars and Appwrite-prefixed vars.
+- Core auth, users/workers, service requests, payments, and fuel-station flows are now Convex-backed.
+- Some admin and legacy endpoints may still use SQL during the migration window.

@@ -44,3 +44,62 @@ export const list = queryGeneric({
   },
 });
 
+export const getSettlementByServiceRequest = queryGeneric({
+  handler: async (ctx, args: any) => {
+    return await ctx.db
+      .query("settlements")
+      .withIndex("by_service_request_id", (q) => q.eq("service_request_id", args.service_request_id))
+      .first();
+  },
+});
+
+export const getPlatformConfig = queryGeneric({
+  handler: async (ctx) => {
+    const row = await ctx.db
+      .query("platform_settings")
+      .withIndex("by_key", (q) => q.eq("key", "default"))
+      .first();
+    if (!row?.value_json) return {};
+    try {
+      return JSON.parse(row.value_json);
+    } catch {
+      return {};
+    }
+  },
+});
+
+export const upsertForServiceRequest = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    const serviceRequestId = args.service_request_id;
+    const provider = args.provider || "razorpay";
+    const rows = await ctx.db.query("payments").collect();
+    const existing = rows.find(
+      (r) =>
+        String(r.service_request_id || "") === String(serviceRequestId || "") &&
+        String(r.provider || "") === String(provider)
+    );
+    const now = nowIso();
+    const patch = {
+      provider,
+      provider_payment_id: args.provider_payment_id || undefined,
+      amount: Number(args.amount || 0),
+      currency: args.currency || "INR",
+      status: args.status || "created",
+      metadata:
+        typeof args.metadata === "string" ? args.metadata : JSON.stringify(args.metadata || {}),
+      updated_at: now,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, patch);
+      return { id: existing._id, updated: true };
+    }
+
+    const id = await ctx.db.insert("payments", {
+      service_request_id: serviceRequestId,
+      ...patch,
+      created_at: now,
+    });
+    return { id, created: true };
+  },
+});

@@ -1,67 +1,5 @@
 import { NextResponse } from "next/server";
-const { getDB } = require("../../../../database/db");
-
-const isDuplicateColumnError = (err) =>
-  /duplicate column name|already exists|42701|ER_DUP_FIELDNAME/i.test(String(err?.message || ""));
-
-function ensureCodSettingsTable(db) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS cod_settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        cod_limit INTEGER DEFAULT 500,
-        trust_threshold REAL DEFAULT 50,
-        max_failures INTEGER DEFAULT 3,
-        disable_days INTEGER DEFAULT 7
-      )`,
-      (err) => (err ? reject(err) : resolve())
-    );
-  });
-}
-
-function ensureUserCodColumns(db) {
-  const cols = [
-    "trust_score REAL DEFAULT 50",
-    "cod_success_count INTEGER DEFAULT 0",
-    "cod_failure_count INTEGER DEFAULT 0",
-    "cod_last_failure_reason VARCHAR(200)",
-    "cod_disabled INTEGER DEFAULT 0",
-    "cod_disabled_until DATETIME",
-  ];
-  return Promise.all(
-    cols.map(
-      (col) =>
-        new Promise((resolve) => {
-          db.run(`ALTER TABLE users ADD COLUMN ${col}`, (err) => {
-            if (err && !isDuplicateColumnError(err)) {
-              console.error(`Add users.${col} failed:`, err);
-            }
-            resolve();
-          });
-        })
-    )
-  );
-}
-
-function ensureFuelStationCodColumns(db) {
-  const cols = [
-    "cod_supported INTEGER DEFAULT 1",
-    "cod_delivery_allowed INTEGER DEFAULT 1",
-  ];
-  return Promise.all(
-    cols.map(
-      (col) =>
-        new Promise((resolve) => {
-          db.run(`ALTER TABLE fuel_stations ADD COLUMN ${col}`, (err) => {
-            if (err && !isDuplicateColumnError(err)) {
-              console.error(`Add fuel_stations.${col} failed:`, err);
-            }
-            resolve();
-          });
-        })
-    )
-  );
-}
+const { convexQuery } = require("../../../lib/convexServer");
 
 const toRadians = (v) => (v * Math.PI) / 180;
 const distanceMeters = (a, b) => {
@@ -85,59 +23,21 @@ export async function GET(request) {
     const locationAllowsParam = url.searchParams.get("location_allows_cod");
 
     const orderAmount = Number(orderAmountParam);
-    if (!userId || Number.isNaN(Number(userId))) {
+    if (!userId) {
       return NextResponse.json({ cod_allowed: false, reason: "invalid_user" }, { status: 400 });
     }
     if (Number.isNaN(orderAmount)) {
       return NextResponse.json({ cod_allowed: false, reason: "invalid_amount" }, { status: 400 });
     }
 
-    const db = getDB();
-    await ensureCodSettingsTable(db);
-    await ensureUserCodColumns(db);
-    await ensureFuelStationCodColumns(db);
-    await new Promise((resolve) => {
-      db.run("UPDATE users SET trust_score = 50 WHERE trust_score IS NULL", () => resolve());
-    });
-    await new Promise((resolve) => {
-      db.run("UPDATE users SET cod_success_count = 0 WHERE cod_success_count IS NULL", () => resolve());
-    });
-    await new Promise((resolve) => {
-      db.run("UPDATE users SET cod_failure_count = 0 WHERE cod_failure_count IS NULL", () => resolve());
-    });
-    await new Promise((resolve) => {
-      db.run("UPDATE users SET cod_disabled = 0 WHERE cod_disabled IS NULL", () => resolve());
-    });
-    await new Promise((resolve) => {
-      db.run("UPDATE fuel_stations SET cod_supported = 1 WHERE cod_supported IS NULL", () => resolve());
-    });
-    await new Promise((resolve) => {
-      db.run("UPDATE fuel_stations SET cod_delivery_allowed = 1 WHERE cod_delivery_allowed IS NULL", () => resolve());
-    });
+    const cfg = (await convexQuery("cod:getSettings", {})) || {
+      cod_limit: 500,
+      trust_threshold: 50,
+      max_failures: 3,
+      disable_days: 7,
+    };
 
-    const settings = await new Promise((resolve) => {
-      db.get("SELECT * FROM cod_settings WHERE id = 1", (err, row) => {
-        if (err) return resolve(null);
-        return resolve(row || null);
-      });
-    });
-    if (!settings) {
-      await new Promise((resolve) => {
-        db.run("INSERT OR IGNORE INTO cod_settings (id) VALUES (1)", () => resolve());
-      });
-    }
-    const cfg = settings || { cod_limit: 500, trust_threshold: 50, max_failures: 3, disable_days: 7 };
-
-    const user = await new Promise((resolve) => {
-      db.get(
-        "SELECT id, trust_score, cod_success_count, cod_failure_count, cod_disabled, cod_disabled_until FROM users WHERE id = ?",
-        [userId],
-        (err, row) => {
-          if (err) return resolve(null);
-          resolve(row || null);
-        }
-      );
-    });
+    const user = await convexQuery("users:getById", { id: userId });
 
     if (!user) {
       return NextResponse.json({ cod_allowed: false, reason: "user_not_found" }, { status: 404 });
@@ -173,23 +73,14 @@ export async function GET(request) {
 
     let station = null;
     if (stationIdParam) {
-      station = await new Promise((resolve) => {
-        db.get("SELECT * FROM fuel_stations WHERE id = ?", [stationIdParam], (err, row) => {
-          if (err) return resolve(null);
-          resolve(row || null);
-        });
-      });
+      const selected = await convexQuery("fuel_stations:list", { id: stationIdParam });
+      station = selected?.[0] || null;
     } else if (locationParam) {
       const [latStr, lngStr] = String(locationParam).split(",");
       const lat = Number(latStr);
       const lng = Number(lngStr);
       if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-        const stations = await new Promise((resolve) => {
-          db.all("SELECT * FROM fuel_stations", (err, rows) => {
-            if (err) return resolve([]);
-            resolve(rows || []);
-          });
-        });
+        const stations = (await convexQuery("fuel_stations:list", {})) || [];
         let nearest = null;
         let nearestDist = Infinity;
         stations.forEach((s) => {
@@ -208,11 +99,11 @@ export async function GET(request) {
       return NextResponse.json({ cod_allowed: false, reason: "fuel_station_not_found" });
     }
 
-    if (station.cod_supported === 0) {
+    if (station.cod_supported === 0 || station.cod_supported === false) {
       return NextResponse.json({ cod_allowed: false, reason: "fuel_station_no_cod" });
     }
 
-    if (station.cod_delivery_allowed === 0) {
+    if (station.cod_delivery_allowed === 0 || station.cod_delivery_allowed === false) {
       return NextResponse.json({ cod_allowed: false, reason: "location_not_supported" });
     }
 

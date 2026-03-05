@@ -1,28 +1,7 @@
 import { NextResponse } from "next/server";
-const { getDB } = require("../../../../database/db");
 const { requireAuth, errorResponse, successResponse } = require("../../../../database/auth-middleware");
 const { encrypt, decrypt } = require("../../../utils/encryption");
-
-function ensureFuelStationBankDetailsTable(db) {
-  return new Promise((resolve) => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS fuel_station_bank_details (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fuel_station_id INTEGER NOT NULL UNIQUE,
-        account_holder_name TEXT NOT NULL,
-        account_number TEXT NOT NULL,
-        ifsc_code TEXT NOT NULL,
-        bank_name TEXT NOT NULL,
-        razorpay_contact_id TEXT,
-        razorpay_fund_account_id TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (fuel_station_id) REFERENCES fuel_stations(id)
-      )`,
-      () => resolve()
-    );
-  });
-}
+const { convexQuery, convexMutation } = require("../../../lib/convexServer");
 
 function maskValue(value, keep = 4) {
   const raw = String(value || "");
@@ -31,57 +10,52 @@ function maskValue(value, keep = 4) {
   return `${"*".repeat(raw.length - keep)}${raw.slice(-keep)}`;
 }
 
-async function resolveFuelStationId(db, auth) {
+async function resolveFuelStationId(auth) {
   if (!auth) return null;
-  const rawId = Number(auth.id);
-  if (!Number.isFinite(rawId)) return null;
-
-  // First try direct station id (works when token id is fuel_stations.id)
-  const direct = await new Promise((resolve) => {
-    db.get("SELECT id FROM fuel_stations WHERE id = ?", [rawId], (err, row) => resolve(row || null));
+  const station = await convexQuery("fuel_station_ops:resolveStation", {
+    fuel_station_id: auth.id,
+    user_id: auth.id,
+    email: auth.email,
   });
-  if (direct?.id) return Number(direct.id);
-
-  // Fallback: token id may actually be users.id
-  if (auth.role === "Station" || auth.role === "Fuel_Station") {
-    const byUser = await new Promise((resolve) => {
-      db.get("SELECT id FROM fuel_stations WHERE user_id = ?", [rawId], (err, row) => resolve(row || null));
-    });
-    if (byUser?.id) return Number(byUser.id);
-  }
-
-  return null;
+  return station?.id || null;
 }
 
-/** GET fuel station bank details (masked) */
 export async function GET(request) {
   const auth = requireAuth(request);
   if (!auth) return errorResponse("Unauthorized", 401);
 
-  const db = getDB();
-  await ensureFuelStationBankDetailsTable(db);
-
-  const fuelStationId = await resolveFuelStationId(db, auth);
+  const fuelStationId = await resolveFuelStationId(auth);
   if (!fuelStationId) return errorResponse("Unauthorized", 401);
 
   try {
-    const bankDetails = await new Promise((resolve, reject) => {
-      db.get(
-        "SELECT account_holder_name, account_number, ifsc_code, bank_name, updated_at FROM fuel_station_bank_details WHERE fuel_station_id = ?",
-        [fuelStationId],
-        (err, row) => (err ? reject(err) : resolve(row || null))
-      );
+    const bankDetails = await convexQuery("fuel_station_ops:getBankDetails", {
+      fuel_station_id: fuelStationId,
     });
 
     if (!bankDetails) {
       return successResponse({ bank_details: null });
     }
 
+    const rawAccount = (() => {
+      try {
+        return decrypt(bankDetails.account_number);
+      } catch {
+        return String(bankDetails.account_number || "");
+      }
+    })();
+    const rawIfsc = (() => {
+      try {
+        return decrypt(bankDetails.ifsc_code);
+      } catch {
+        return String(bankDetails.ifsc_code || "");
+      }
+    })();
+
     return successResponse({
       bank_details: {
         account_holder_name: bankDetails.account_holder_name,
-        account_number: maskValue(decrypt(bankDetails.account_number), 4),
-        ifsc_code: maskValue(decrypt(bankDetails.ifsc_code), 4),
+        account_number: maskValue(rawAccount, 4),
+        ifsc_code: maskValue(rawIfsc, 4),
         bank_name: bankDetails.bank_name,
         updated_at: bankDetails.updated_at,
       },
@@ -92,15 +66,11 @@ export async function GET(request) {
   }
 }
 
-/** POST/Update fuel station bank details */
 export async function POST(request) {
   const auth = requireAuth(request);
   if (!auth) return errorResponse("Unauthorized", 401);
 
-  const db = getDB();
-  await ensureFuelStationBankDetailsTable(db);
-
-  const fuelStationId = await resolveFuelStationId(db, auth);
+  const fuelStationId = await resolveFuelStationId(auth);
   if (!fuelStationId) return errorResponse("Unauthorized", 401);
 
   try {
@@ -122,34 +92,12 @@ export async function POST(request) {
       return errorResponse("Invalid IFSC format. Expected 11 characters (e.g., HDFC0001234)", 400);
     }
 
-    const encryptedAccount = encrypt(normalizedAccount);
-    const encryptedIfsc = encrypt(normalizedIfsc);
-
-    const existing = await new Promise((resolve) => {
-      db.get("SELECT id FROM fuel_station_bank_details WHERE fuel_station_id = ?", [fuelStationId], (err, row) =>
-        resolve(row || null)
-      );
-    });
-
-    await new Promise((resolve, reject) => {
-      if (existing) {
-        db.run(
-          `UPDATE fuel_station_bank_details
-           SET account_holder_name = ?, account_number = ?, ifsc_code = ?, bank_name = ?,
-               razorpay_fund_account_id = NULL, updated_at = CURRENT_TIMESTAMP
-           WHERE fuel_station_id = ?`,
-          [normalizedHolder, encryptedAccount, encryptedIfsc, normalizedBank, fuelStationId],
-          (err) => (err ? reject(err) : resolve())
-        );
-      } else {
-        db.run(
-          `INSERT INTO fuel_station_bank_details
-           (fuel_station_id, account_holder_name, account_number, ifsc_code, bank_name)
-           VALUES (?, ?, ?, ?, ?)`,
-          [fuelStationId, normalizedHolder, encryptedAccount, encryptedIfsc, normalizedBank],
-          (err) => (err ? reject(err) : resolve())
-        );
-      }
+    await convexMutation("fuel_station_ops:upsertBankDetails", {
+      fuel_station_id: fuelStationId,
+      account_holder_name: normalizedHolder,
+      account_number: encrypt(normalizedAccount),
+      ifsc_code: encrypt(normalizedIfsc),
+      bank_name: normalizedBank,
     });
 
     return successResponse({ message: "Bank details saved successfully." });

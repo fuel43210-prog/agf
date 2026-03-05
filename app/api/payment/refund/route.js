@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-const { getDB, getLocalDateTimeString } = require("../../../../database/db");
+const { convexMutation, convexQuery } = require("../../../lib/convexServer");
 
 function getRazorpayClient() {
     const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
@@ -32,26 +32,20 @@ export async function POST(request) {
             },
         });
 
-        const db = getDB();
-        const now = getLocalDateTimeString();
-
-        // Log refund in payment table
-        await new Promise((resolve) => {
-            db.run(
-                `UPDATE payments SET status = 'reversed', updated_at = ? WHERE provider_payment_id = ?`,
-                [now, payment_id],
-                (err) => resolve()
-            );
+        await convexMutation("payments:updateByProviderPaymentId", {
+            provider_payment_id: payment_id,
+            status: "reversed",
+            metadata: { refund }
         });
 
-        // Also update service request if needed (though usually handled by status change)
-        await new Promise((resolve) => {
-            db.run(
-                `UPDATE service_requests SET payment_status = 'REFUNDED' WHERE payment_id = ?`,
-                [payment_id],
-                (err) => resolve()
-            );
-        });
+        const serviceRequest = await convexQuery("service_requests:getByPaymentId", { payment_id });
+        if (serviceRequest?._id) {
+            await convexMutation("service_requests:updatePaymentDetails", {
+                id: serviceRequest._id,
+                payment_status: "REFUNDED",
+                payment_details: refund,
+            });
+        }
 
         return NextResponse.json({
             success: true,

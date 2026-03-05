@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-const { getDB, getLocalDateTimeString } = require("../../../../database/db");
 const { calculateSettlement, validateSettlement } = require("../../../../database/settlement-calculator");
+const { convexQuery } = require("../../../lib/convexServer");
 
 /**
  * POST /api/payment/calculate
@@ -28,15 +28,8 @@ export async function POST(request) {
       );
     }
 
-    const db = getDB();
-
-    // Get service request details
-    const serviceRequest = await new Promise((resolve) => {
-      db.get(
-        "SELECT * FROM service_requests WHERE id = ?",
-        [service_request_id],
-        (err, row) => resolve(row || null)
-      );
+    const serviceRequest = await convexQuery("service_requests:getById", {
+      id: service_request_id,
     });
 
     if (!serviceRequest) {
@@ -49,26 +42,11 @@ export async function POST(request) {
     // Get worker configuration if assigned
     let workerConfig = {};
     if (serviceRequest.assigned_worker) {
-      const worker = await new Promise((resolve) => {
-        db.get(
-          "SELECT base_pay_per_order, per_km_rate, surge_split_percentage, peak_hour_bonus_percentage, long_distance_bonus_km, long_distance_bonus, incentive_threshold_deliveries, incentive_bonus, minimum_guaranteed_pay FROM workers WHERE id = ?",
-          [serviceRequest.assigned_worker],
-          (err, row) => resolve(row || {})
-        );
-      });
-      workerConfig = worker;
+      workerConfig =
+        (await convexQuery("workers:getById", { id: serviceRequest.assigned_worker })) || {};
     }
 
-    // Get platform configuration
-    let platformConfig = {};
-    const settings = await new Promise((resolve) => {
-      db.get(
-        "SELECT delivery_fee_base, platform_service_fee_percentage, surge_night_multiplier, surge_rain_multiplier, surge_emergency_multiplier FROM platform_settings WHERE id = 1",
-        [],
-        (err, row) => resolve(row || {})
-      );
-    });
-    platformConfig = settings;
+    const platformConfig = (await convexQuery("payments:getPlatformConfig", {})) || {};
 
     // Calculate settlement
     const settlement = calculateSettlement({
@@ -133,15 +111,8 @@ export async function GET(request) {
       );
     }
 
-    const db = getDB();
-
-    // Check if settlement already exists
-    const existingSettlement = await new Promise((resolve) => {
-      db.get(
-        "SELECT * FROM settlements WHERE service_request_id = ?",
-        [service_request_id],
-        (err, row) => resolve(row || null)
-      );
+    const existingSettlement = await convexQuery("payments:getSettlementByServiceRequest", {
+      service_request_id,
     });
 
     if (existingSettlement) {

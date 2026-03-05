@@ -40,3 +40,8 @@ export const getByEmail = queryGeneric({
   },
 });
 
+export const getById = queryGeneric({
+  handler: async (ctx, args: any) => {
+    return await ctx.db.get(args.id);
+  },
+});

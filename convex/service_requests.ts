@@ -32,7 +32,46 @@ export const list = queryGeneric({
     const all = await ctx.db.query("service_requests").collect();
     return all
       .filter((r) => (args.status ? r.status === args.status : true))
+      .filter((r) => (args.user_id ? String(r.user_id || "") === String(args.user_id) : true))
+      .filter((r) =>
+        args.assigned_worker ? String(r.assigned_worker || "") === String(args.assigned_worker) : true
+      )
       .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+  },
+});
+
+export const getById = queryGeneric({
+  handler: async (ctx, args: any) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+export const getByPaymentId = queryGeneric({
+  handler: async (ctx, args: any) => {
+    const paymentId = String(args.payment_id || "");
+    if (!paymentId) return null;
+    const rows = await ctx.db.query("service_requests").collect();
+    const byExact = rows.find((r) => String(r.payment_id || "") === paymentId);
+    if (byExact) return byExact;
+    const byLegacy = rows.find((r) => String(r.payment_id || "") === `pay_SE${paymentId.slice(-12)}`);
+    return byLegacy || null;
+  },
+});
+
+export const updatePaymentDetails = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    const row = await ctx.db.get(args.id);
+    if (!row) throw new Error("Service request not found");
+    const patch: Record<string, any> = {};
+    if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
+    if (args.payment_details !== undefined) {
+      patch.payment_details =
+        typeof args.payment_details === "string"
+          ? args.payment_details
+          : JSON.stringify(args.payment_details);
+    }
+    await ctx.db.patch(row._id, patch);
+    return { ok: true };
   },
 });
 
@@ -51,8 +90,10 @@ export const updateStatus = mutationGeneric({
     }
     if (args.assigned_worker !== undefined) patch.assigned_worker = args.assigned_worker;
     if (args.cod_failure_reason !== undefined) patch.cod_failure_reason = args.cod_failure_reason;
+    if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
+    if (args.payment_method !== undefined) patch.payment_method = args.payment_method;
+    if (args.fuel_station_id !== undefined) patch.fuel_station_id = args.fuel_station_id;
     await ctx.db.patch(row._id, patch);
     return { ok: true };
   },
 });
-

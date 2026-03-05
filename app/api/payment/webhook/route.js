@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 const crypto = require("crypto");
-const { getDB, getLocalDateTimeString } = require("../../../../database/db");
+const { convexMutation, convexQuery } = require("../../../lib/convexServer");
 
 /**
  * POST /api/payment/webhook
@@ -42,159 +42,55 @@ export async function POST(request) {
       }
     }
 
-    const db = getDB();
     const event = body.event;
     const paymentData = body.payload?.payment?.entity || {};
-    const transferData = body.payload?.transfer?.entity || {};
-
-    const now = getLocalDateTimeString();
-
-    // Ensure payments table exists
-    await ensurePaymentsTable(db);
+    const paymentId = paymentData.id;
+    const amount = paymentData.amount || 0;
 
     // Handle payment events
     if (event === "payment.authorized" || event === "payment.captured") {
-      const paymentId = paymentData.id;
-      const amount = paymentData.amount;
-      const status = paymentData.status; // "captured" or "authorized"
-
-      // Find service request by payment ID
-      const serviceRequest = await new Promise((resolve) => {
-        db.get(
-          "SELECT id, user_id FROM service_requests WHERE payment_id = ? OR payment_id = ?",
-          [paymentId, `pay_SE${paymentId.slice(-12)}`],
-          (err, row) => resolve(row || null)
-        );
-      });
+      const serviceRequest = await convexQuery("service_requests:getByPaymentId", { payment_id: paymentId });
 
       if (serviceRequest) {
-        // Update or create payment record
-        const existingPayment = await new Promise((resolve) => {
-          db.get(
-            "SELECT id FROM payments WHERE service_request_id = ? AND provider = 'razorpay'",
-            [serviceRequest.id],
-            (err, row) => resolve(row || null)
-          );
+        await convexMutation("payments:upsertForServiceRequest", {
+          service_request_id: serviceRequest._id,
+          provider: "razorpay",
+          provider_payment_id: paymentId,
+          amount,
+          currency: paymentData.currency || "INR",
+          status: "captured",
+          metadata: paymentData,
         });
 
-        if (existingPayment) {
-          // Update existing payment
-          await new Promise((resolve) => {
-            db.run(
-              "UPDATE payments SET status = ?, provider_payment_id = ?, amount = ?, metadata = ?, updated_at = ? WHERE id = ?",
-              [
-                "captured",
-                paymentId,
-                amount,
-                JSON.stringify(paymentData),
-                now,
-                existingPayment.id,
-              ],
-              () => resolve()
-            );
-          });
-        } else {
-          // Create new payment record
-          await new Promise((resolve) => {
-            db.run(
-              "INSERT INTO payments (service_request_id, provider, provider_payment_id, amount, status, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-              [
-                serviceRequest.id,
-                "razorpay",
-                paymentId,
-                amount,
-                "captured",
-                JSON.stringify(paymentData),
-                now,
-                now,
-              ],
-              () => resolve()
-            );
-          });
-        }
-
-        // Update service request payment status
-        await new Promise((resolve) => {
-          db.run(
-            "UPDATE service_requests SET payment_status = 'PAID', payment_details = ? WHERE id = ?",
-            [JSON.stringify(paymentData), serviceRequest.id],
-            () => resolve()
-          );
+        await convexMutation("service_requests:updatePaymentDetails", {
+          id: serviceRequest._id,
+          payment_status: "PAID",
+          payment_details: paymentData,
         });
 
-        console.log(`Payment captured for service request ${serviceRequest.id}`);
+        console.log(`Payment captured for service request ${String(serviceRequest._id)}`);
       }
     } else if (event === "payment.failed") {
-      const paymentId = paymentData.id;
-
-      const serviceRequest = await new Promise((resolve) => {
-        db.get(
-          "SELECT id FROM service_requests WHERE payment_id = ? OR payment_id = ?",
-          [paymentId, `pay_SE${paymentId.slice(-12)}`],
-          (err, row) => resolve(row || null)
-        );
-      });
+      const serviceRequest = await convexQuery("service_requests:getByPaymentId", { payment_id: paymentId });
 
       if (serviceRequest) {
-        // Create failed payment record
-        await new Promise((resolve) => {
-          db.run(
-            "INSERT INTO payments (service_request_id, provider, provider_payment_id, amount, status, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [
-              serviceRequest.id,
-              "razorpay",
-              paymentId,
-              paymentData.amount || 0,
-              "failed",
-              JSON.stringify(paymentData),
-              now,
-              now,
-            ],
-            () => resolve()
-          );
+        await convexMutation("payments:upsertForServiceRequest", {
+          service_request_id: serviceRequest._id,
+          provider: "razorpay",
+          provider_payment_id: paymentId,
+          amount,
+          currency: paymentData.currency || "INR",
+          status: "failed",
+          metadata: paymentData,
         });
 
-        // Update service request payment status
-        await new Promise((resolve) => {
-          db.run(
-            "UPDATE service_requests SET payment_status = 'FAILED', payment_details = ? WHERE id = ?",
-            [JSON.stringify(paymentData), serviceRequest.id],
-            () => resolve()
-          );
+        await convexMutation("service_requests:updatePaymentDetails", {
+          id: serviceRequest._id,
+          payment_status: "FAILED",
+          payment_details: paymentData,
         });
 
-        console.log(`Payment failed for service request ${serviceRequest.id}`);
-      }
-    } else if (event === "payment.authorized") {
-      // Handle authorized but not captured payments
-      const paymentId = paymentData.id;
-      const amount = paymentData.amount;
-
-      const serviceRequest = await new Promise((resolve) => {
-        db.get(
-          "SELECT id FROM service_requests WHERE payment_id = ? OR payment_id = ?",
-          [paymentId, `pay_SE${paymentId.slice(-12)}`],
-          (err, row) => resolve(row || null)
-        );
-      });
-
-      if (serviceRequest) {
-        await new Promise((resolve) => {
-          db.run(
-            "INSERT INTO payments (service_request_id, provider, provider_payment_id, amount, status, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [
-              serviceRequest.id,
-              "razorpay",
-              paymentId,
-              amount,
-              "authorized",
-              JSON.stringify(paymentData),
-              now,
-              now,
-            ],
-            () => resolve()
-          );
-        });
+        console.log(`Payment failed for service request ${String(serviceRequest._id)}`);
       }
     }
 
@@ -208,31 +104,4 @@ export async function POST(request) {
       { status: 200 }
     );
   }
-}
-
-/**
- * Ensure payments table exists
- */
-function ensurePaymentsTable(db) {
-  return new Promise((resolve) => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS payments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        service_request_id INTEGER NOT NULL,
-        provider VARCHAR(50) NOT NULL,
-        provider_payment_id VARCHAR(128),
-        amount INTEGER NOT NULL,
-        currency VARCHAR(10) DEFAULT 'INR',
-        status VARCHAR(30) DEFAULT 'created',
-        metadata TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (service_request_id) REFERENCES service_requests(id)
-      )`,
-      (err) => {
-        if (err) console.error("Error creating payments table:", err);
-        resolve();
-      }
-    );
-  });
 }
