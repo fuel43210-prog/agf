@@ -173,19 +173,7 @@ export default defineSchema({
     created_at: v.optional(v.string()),
   }).index("by_created_at", ["created_at"]),
 
-  audit_logs: defineTable({
-    action: v.string(),
-    entity_type: v.string(),
-    entity_id: v.string(),
-    user_id: v.optional(v.id("users")),
-    user_role: v.optional(v.string()),
-    old_values: v.optional(v.string()),
-    new_values: v.optional(v.string()),
-    ip_address: v.optional(v.string()),
-    user_agent: v.optional(v.string()),
-    description: v.optional(v.string()),
-    created_at: v.optional(v.string()),
-  }),
+
 
   worker_bank_details: defineTable({
     worker_id: v.id("workers"),
