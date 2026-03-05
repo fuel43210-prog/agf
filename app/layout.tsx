@@ -4,6 +4,7 @@ import "./globals.css";
 import LocationPrompt from "./LocationPrompt";
 import { NotificationProvider } from "./NotificationSystem";
 import Script from "next/script";
+import AppwritePing from "./AppwritePing";
 
 export const metadata: Metadata = {
   title: "Automotive Grade Fuel",
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <NotificationProvider>
+          <AppwritePing />
           {/* <RedirectToLocalhost /> */}
           <LocationPrompt />
           {children}
@@ -31,4 +33,3 @@ export default function RootLayout({
     </html>
   );
 }
-
