@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 
 interface FuelStationAssignmentProps {
-  workerId: number;
-  serviceRequestId: number;
+  workerId: number | string;
+  serviceRequestId: number | string;
   workerLat: number;
   workerLng: number;
   fuelType: string;
@@ -99,7 +99,7 @@ export default function FuelStationAssignment({
   }, [workerId, serviceRequestId, workerLat, workerLng, fuelType, litres, isCod]);
 
   // Load alternative fuel stations
-  const loadAlternatives = async (excludedStationId: number) => {
+  const loadAlternatives = async (excludedStationId: number | string) => {
     try {
       const response = await fetch('/api/assign-fuel-station', {
         method: 'POST',
@@ -221,7 +221,7 @@ export default function FuelStationAssignment({
                 <div className="alt-name">⛽ {alt.name}</div>
                 <div className="alt-details">
                   <p>Distance: {alt.distance_km} km</p>
-                  <p>Stock: {alt.available_stock}L {alt.fuel_type}</p>
+                  <p>Stock: {alt.available_stock}L</p>
                   {alt.cod_supported && (
                     <span className="cod-support-badge">COD Supported</span>
                   )}

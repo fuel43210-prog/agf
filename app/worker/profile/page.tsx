@@ -35,6 +35,7 @@ export default function WorkerProfilePage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
+    const [messageType, setMessageType] = useState<"success" | "error" | "">("");
 
     useEffect(() => {
         const fetchWorkerData = async () => {
@@ -66,6 +67,7 @@ export default function WorkerProfilePage() {
                     }
                 } else if (res.status === 401) {
                     setMessage("Session expired or invalid. Please logout and login again to access bank details.");
+                    setMessageType("error");
                 }
             } catch (err) {
                 console.error("Failed to fetch bank details", err);
@@ -80,6 +82,7 @@ export default function WorkerProfilePage() {
         e.preventDefault();
         setSaving(true);
         setMessage("");
+        setMessageType("");
         try {
             const res = await fetch("/api/worker/bank-details", {
                 method: "POST",
@@ -92,6 +95,7 @@ export default function WorkerProfilePage() {
             const data = await res.json();
             if (res.ok) {
                 setMessage("Bank details submitted for verification!");
+                setMessageType("success");
                 setBankDetails({
                     ...bankForm,
                     is_bank_verified: 0,
@@ -100,9 +104,11 @@ export default function WorkerProfilePage() {
                 });
             } else {
                 setMessage(data.error || "Failed to submit bank details.");
+                setMessageType("error");
             }
         } catch (err) {
             setMessage("Error submitting bank details.");
+            setMessageType("error");
         } finally {
             setSaving(false);
         }
@@ -112,6 +118,7 @@ export default function WorkerProfilePage() {
         if (!worker) return;
         setSaving(true);
         setMessage("");
+        setMessageType("");
         try {
             const res = await fetch("/api/workers", {
                 method: "PATCH",
@@ -121,12 +128,15 @@ export default function WorkerProfilePage() {
             if (res.ok) {
                 setWorker({ ...worker, service_type: role });
                 setMessage("Role updated successfully!");
+                setMessageType("success");
             } else {
                 const data = await res.json();
                 setMessage(data.error || "Failed to update role.");
+                setMessageType("error");
             }
         } catch (err) {
             setMessage("Error updating role.");
+            setMessageType("error");
         } finally {
             setSaving(false);
         }
@@ -136,10 +146,12 @@ export default function WorkerProfilePage() {
         if (!worker) return;
         if (worker.status_locked) {
             setMessage("Your status is locked by Admin. Please contact support.");
+            setMessageType("error");
             return;
         }
         setSaving(true);
         setMessage("");
+        setMessageType("");
         try {
             const res = await fetch("/api/workers", {
                 method: "PATCH",
@@ -149,12 +161,15 @@ export default function WorkerProfilePage() {
             if (res.ok) {
                 setWorker({ ...worker, status: newStatus });
                 setMessage(`Status updated to ${newStatus}!`);
+                setMessageType("success");
             } else {
                 const data = await res.json();
                 setMessage(data.error || "Failed to update status.");
+                setMessageType("error");
             }
         } catch (err) {
             setMessage("Error updating status.");
+            setMessageType("error");
         } finally {
             setSaving(false);
         }
@@ -271,8 +286,8 @@ export default function WorkerProfilePage() {
                     marginTop: '1.5rem',
                     padding: '0.75rem',
                     borderRadius: '6px',
-                    backgroundColor: message.toLowerCase().includes('success') || message.toLowerCase().includes('updated') ? '#f0fdf4' : '#fef2f2',
-                    color: message.toLowerCase().includes('success') || message.toLowerCase().includes('updated') ? '#166534' : '#991b1b',
+                    backgroundColor: messageType === "success" ? '#f0fdf4' : '#fef2f2',
+                    color: messageType === "success" ? '#166534' : '#991b1b',
                     fontSize: '0.9rem',
                     fontWeight: 500,
                     textAlign: 'center'

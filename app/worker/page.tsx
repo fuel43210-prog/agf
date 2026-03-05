@@ -12,11 +12,11 @@ const AdminMap = dynamic(() => import("../admin/AdminMap"), { ssr: false });
 const FuelStationAssignment = dynamic(() => import("./FuelStationAssignment"), { ssr: false });
 
 type ServiceRequest = {
-  id: number;
-  user_id: number | null;
+  id: number | string;
+  user_id: number | string | null;
   user_first_name?: string | null;
   user_last_name?: string | null;
-  assigned_worker: number | null;
+  assigned_worker: number | string | null;
   vehicle_number: string;
   driving_licence: string;
   phone_number: string;
@@ -63,11 +63,9 @@ declare global {
 const ACTIVE_STATUSES = ["Assigned", "In Progress"];
 const HISTORY_STATUSES = ["Completed", "Cancelled"];
 
-function sameNumericId(a: number | string | null | undefined, b: number | string | null | undefined) {
+function sameEntityId(a: number | string | null | undefined, b: number | string | null | undefined) {
   if (a == null || b == null) return false;
-  const na = Number(a);
-  const nb = Number(b);
-  return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+  return String(a) === String(b);
 }
 
 // Helper for distance calculation (metres) using Haversine formula
@@ -108,7 +106,7 @@ export default function WorkerDashboardPage() {
   const { showToast, showConfirm } = useNotification();
   const [worker, setWorker] = useState<{
     first_name: string;
-    id: number;
+    id: number | string;
     service_type: string;
     status: string;
     status_locked?: number;
@@ -179,7 +177,7 @@ export default function WorkerDashboardPage() {
     }
   }, [worker?.id]);
 
-  const refreshWorker = useCallback(async (workerId: number) => {
+  const refreshWorker = useCallback(async (workerId: number | string) => {
     try {
       const res = await fetch(`/api/workers?id=${workerId}`);
       if (!res.ok) return null;
@@ -192,7 +190,7 @@ export default function WorkerDashboardPage() {
   }, []);
 
   const updateWorkerStatus = useCallback(
-    async (workerId: number, status: "Available" | "Busy" | "Offline") => {
+    async (workerId: number | string, status: "Available" | "Busy" | "Offline") => {
       try {
         const res = await fetch("/api/workers", {
           method: "PATCH",
@@ -329,7 +327,7 @@ export default function WorkerDashboardPage() {
     }, 2000);
   };
 
-  const handleAssignmentReceived = useCallback((taskId: number, assignment: any) => {
+  const handleAssignmentReceived = useCallback((taskId: number | string, assignment: any) => {
     setServiceRequests(prev => prev.map(r => r.id === taskId ? {
       ...r,
       fuel_station_name: assignment.name,
@@ -423,7 +421,7 @@ export default function WorkerDashboardPage() {
     }
   }, [worker, clearingFloatingCash, getAuthHeaders, markFloatingCashFailed, refreshWorker, showToast]);
 
-  const updateTaskStatus = async (id: number, newStatus: string) => {
+  const updateTaskStatus = async (id: number | string, newStatus: string) => {
     try {
       const res = await fetch("/api/service-requests", {
         method: "PATCH",
@@ -437,13 +435,17 @@ export default function WorkerDashboardPage() {
           await updateWorkerStatus(worker.id, "Available");
         }
         fetchTasks();
+      } else {
+        const data = await res.json().catch(() => null);
+        showToast(data?.error || "Failed to update task status.", "error");
       }
     } catch (err) {
       console.error("Failed to update status", err);
+      showToast("Failed to update task status.", "error");
     }
   };
 
-  const acceptTask = async (requestId: number) => {
+  const acceptTask = async (requestId: number | string) => {
     if (!worker?.id) return;
     if (!canAcceptRequests) return;
     setLoading(true);
@@ -461,7 +463,7 @@ export default function WorkerDashboardPage() {
       if (res.ok) {
         setServiceRequests((prev) =>
           prev.map((r) =>
-            r.id === requestId ? { ...r, status: "Assigned", assigned_worker: Number(worker.id) } : r
+            r.id === requestId ? { ...r, status: "Assigned", assigned_worker: worker.id } : r
           )
         );
         await updateWorkerStatus(worker.id, "Busy");
@@ -470,16 +472,20 @@ export default function WorkerDashboardPage() {
       } else {
         if (res.status === 409) {
           showBusyNotice("You already have an active task. Complete it to accept another job.");
+        } else {
+          const data = await res.json().catch(() => null);
+          showToast(data?.error || "Failed to accept task.", "error");
         }
       }
     } catch (err) {
       console.error("Failed to accept task", err);
+      showToast("Failed to accept task.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAcceptClick = (requestId: number) => {
+  const handleAcceptClick = (requestId: number | string) => {
     if (!canAcceptRequests) {
       if (worker?.status === "Offline") {
         showBusyNotice("You are Offline. Switch to Available to accept jobs.");
@@ -493,7 +499,7 @@ export default function WorkerDashboardPage() {
     acceptTask(requestId);
   };
 
-  const cancelTask = async (requestId: number) => {
+  const cancelTask = async (requestId: number | string) => {
     if (!worker?.id) return;
     const confirmed = await showConfirm("Are you sure you want to cancel this job? This will make it available for other workers.");
     if (!confirmed) return;
@@ -523,7 +529,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const markCodFailed = async (requestId: number) => {
+  const markCodFailed = async (requestId: number | string) => {
     if (!worker?.id) return;
     const confirmed = await showConfirm("Confirm COD failure? Use this only when user refused to pay cash on delivery.");
     if (!confirmed) return;
@@ -556,7 +562,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const openNavigation = (taskId: number, lat: number | null, lon: number | null, label: string) => {
+  const openNavigation = (taskId: number | string, lat: number | null, lon: number | null, label: string) => {
     if (lat == null || lon == null) return;
 
     // Automatically start job if not already started
@@ -673,11 +679,11 @@ export default function WorkerDashboardPage() {
   const isVerified = !!worker?.verified;
 
   const activeTasks = serviceRequests.filter(
-    (r) => sameNumericId(r.assigned_worker, worker?.id) && ACTIVE_STATUSES.includes(r.status)
+    (r) => sameEntityId(r.assigned_worker, worker?.id) && ACTIVE_STATUSES.includes(r.status)
   );
 
   const historyTasks = serviceRequests.filter(
-    (r) => sameNumericId(r.assigned_worker, worker?.id) && HISTORY_STATUSES.includes(r.status)
+    (r) => sameEntityId(r.assigned_worker, worker?.id) && HISTORY_STATUSES.includes(r.status)
   );
 
   const hasActiveTask = activeTasks.length > 0;
