@@ -84,7 +84,15 @@ export default function AdminServiceRequestsPage() {
     fetch("/api/admin/stats")
       .then((res) => res.json())
       .then((data) => {
-        setServiceRequests(data.serviceRequests || []);
+        if (Array.isArray(requests)) {
+          // Ensure all IDs are numbers, as API might return strings
+          requests.forEach(req => {
+            req.id = Number(req.id);
+            if (req.user_id) req.user_id = Number(req.user_id);
+            if (req.assigned_worker) req.assigned_worker = Number(req.assigned_worker);
+          });
+        }
+        setServiceRequests(requests);
         setLoading(false);
       })
       .catch(() => setLoading(false));

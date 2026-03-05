@@ -208,9 +208,9 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((u) => (
+                {filteredUsers.map((u, index) => (
                   <tr key={u.id}>
-                    <td>{u.id}</td>
+                    <td>{index + 1}</td>
                     <td>{u.first_name} {u.last_name}</td>
                     <td>{u.email}</td>
                     <td>{u.phone_number}</td>

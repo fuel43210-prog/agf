@@ -212,9 +212,9 @@ export default function FuelStationsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {stations.map(station => (
+                                {stations.map((station, index) => (
                                     <tr key={station.id}>
-                                        <td>{station.id}</td>
+                                        <td>{index + 1}</td>
                                         <td style={{ fontWeight: 500 }}>{station.station_name || station.name}</td>
                                         <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             {displayText(station.address)}

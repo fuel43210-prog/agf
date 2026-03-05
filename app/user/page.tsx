@@ -1,4 +1,4 @@
-﻿﻿"use client";
+﻿﻿﻿﻿"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
@@ -12,7 +12,7 @@ const UserMap = dynamic(() => import("./UserMap"), { ssr: false });
 const RequestLocationPicker = dynamic(() => import("./RequestLocationPicker"), { ssr: false });
 
 type Worker = {
-  id: number | string;
+  id: number;
   first_name: string;
   last_name: string;
   status: string;
@@ -23,8 +23,8 @@ type Worker = {
 };
 
 type ServiceRequest = {
-  id: number | string;
-  user_id: number | string | null;
+  id: number;
+  user_id: number | null;
   vehicle_number: string;
   driving_licence: string;
   phone_number: string;
@@ -32,7 +32,7 @@ type ServiceRequest = {
   amount: number;
   status: string;
   created_at: string;
-  assigned_worker?: number | string | null;
+  assigned_worker?: number | null;
   user_lat?: number | null;
   user_lon?: number | null;
   rating?: number;
@@ -44,7 +44,7 @@ type ServiceRequest = {
 type CodEligibility = {
   allowed: boolean;
   reason?: string;
-  stationId?: number | string;
+  stationId?: number;
 };
 
 type BillPreview = {
@@ -75,7 +75,7 @@ export default function UserDashboardPage() {
   const { showToast } = useNotification();
   const [user, setUser] = useState<{
     first_name: string;
-    id?: number | string;
+    id?: number;
     phone_number?: string;
     driving_licence?: string;
   } | null>(null);
@@ -198,7 +198,15 @@ export default function UserDashboardPage() {
     try {
       const url = user?.id != null ? `/api/service-requests?user_id=${user.id}` : "/api/service-requests";
       const res = await fetch(url);
-      const data = res.ok ? await res.json() : [];
+      let data = res.ok ? await res.json() : [];
+      if (Array.isArray(data)) {
+        // Ensure IDs are numbers
+        data.forEach(req => {
+          req.id = Number(req.id);
+          if (req.user_id) req.user_id = Number(req.user_id);
+          if (req.assigned_worker) req.assigned_worker = Number(req.assigned_worker);
+        });
+      }
       setServiceRequests(Array.isArray(data) ? data : []);
     } catch (err) {
       setServiceRequests([]);
@@ -221,7 +229,7 @@ export default function UserDashboardPage() {
         }
         setUser({
           first_name: data.first_name || "User",
-          id: data.id != null ? data.id : undefined,
+          id: data.id != null ? Number(data.id) : undefined,
           phone_number: data.phone_number || "",
           driving_licence: data.driving_licence || "",
         });
@@ -680,38 +688,32 @@ export default function UserDashboardPage() {
     }
   };
 
-  useEffect(() => {
-    if (authChecked) fetchServiceRequests();
-  }, [fetchServiceRequests, authChecked]);
-
-  useEffect(() => {
-    if (!authChecked) return;
-    const interval = setInterval(() => {
-      fetchServiceRequests();
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [fetchServiceRequests, authChecked]);
-
-  useEffect(() => {
-    if (!authChecked) return;
+  const fetchWorkers = useCallback(() => {
     fetch("/api/workers")
       .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setWorkers(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const workerList = Array.isArray(data) ? data : [];
+        // Ensure worker IDs are numbers
+        workerList.forEach(w => w.id = Number(w.id));
+        setWorkers(workerList);
+      })
       .catch(() => setWorkers([]))
-      .finally(() => setWorkersLoading(false));
-  }, [authChecked]);
+      .finally(() => {
+        if (workersLoading) setWorkersLoading(false);
+      });
+  }, [workersLoading]);
 
   useEffect(() => {
-    if (!authChecked) return;
-    const interval = setInterval(() => {
+    if (authChecked) {
       fetchServiceRequests();
-      fetch("/api/workers")
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => setWorkers(Array.isArray(data) ? data : []))
-        .catch(() => setWorkers([]));
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [authChecked, fetchServiceRequests]);
+      fetchWorkers();
+      const interval = setInterval(() => {
+        fetchServiceRequests();
+        fetchWorkers();
+      }, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [authChecked, fetchServiceRequests, fetchWorkers]);
 
   useEffect(() => {
     if (!authChecked) return;
@@ -736,7 +738,12 @@ export default function UserDashboardPage() {
       fetch(`/api/workers?id=${activeAssignedRequest.assigned_worker}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (!cancelled) setAssignedWorker(data && !data.error ? data : null);
+          if (!cancelled && data && !data.error) {
+            data.id = Number(data.id); // Ensure worker ID is a number
+            setAssignedWorker(data);
+          } else if (!cancelled) {
+            setAssignedWorker(null);
+          }
         })
         .catch(() => {
           if (!cancelled) setAssignedWorker(null);
@@ -872,7 +879,7 @@ export default function UserDashboardPage() {
     return `${mins}:${secs}`;
   };
 
-  const handleUserCancelRequest = async (id: number | string) => {
+  const handleUserCancelRequest = async (id: number) => {
     try {
       const res = await fetch(`/api/service-requests/${id}`, {
         method: "PATCH",

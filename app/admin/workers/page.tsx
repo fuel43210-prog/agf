@@ -323,9 +323,9 @@ export default function AdminWorkersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredWorkers.map((w) => (
+                {filteredWorkers.map((w, index) => (
                   <tr key={w.id}>
-                    <td>{w.id}</td>
+                    <td>{index + 1}</td>
                     <td>{w.first_name} {w.last_name}</td>
                     <td>{w.email}</td>
                     <td>
