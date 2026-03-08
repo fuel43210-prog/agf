@@ -40,22 +40,25 @@ export const list = queryGeneric({
   },
 });
 
+const safeGetInternal = async (ctx: any, tableName: string, id: any) => {
+  if (!id) return null;
+  const idStr = String(id);
+  // Convex IDs are typically 16+ chars. "undefined" is 9.
+  // We strictly avoid calling db.get if the format looks invalid to prevent 500 errors.
+  if (idStr.length >= 16 && !idStr.includes(" ") && !idStr.includes("\"")) {
+    try {
+      return await ctx.db.get(id as any);
+    } catch (e) {
+      // Ignore and fallback
+    }
+  }
+  const rows = await ctx.db.query(tableName as any).collect();
+  return rows.find((r: any) => String(r._id) === idStr) || null;
+};
+
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.id) return null;
-    const idStr = String(args.id);
-    try {
-      // Standard Convex ID lookup (requires valid format and length)
-      if (idStr.length >= 16) {
-        return await ctx.db.get(args.id as any);
-      }
-    } catch (e) {
-      // Fallback
-    }
-
-    // Fallback: Scan table for matching _id string
-    const requests = await ctx.db.query("service_requests").collect();
-    return requests.find((r) => String(r._id) === idStr) || null;
+    return await safeGetInternal(ctx, "service_requests", args.id);
   },
 });
 
@@ -74,23 +77,9 @@ export const getByPaymentId = queryGeneric({
 export const updatePaymentDetails = mutationGeneric({
   handler: async (ctx, args: any) => {
     if (!args.id) throw new Error("Service request ID is missing.");
-    const idStr = String(args.id);
-    let row = null;
-
-    try {
-      if (idStr.length >= 16) {
-        row = await ctx.db.get(args.id as any);
-      }
-    } catch (e) {
-      // Fallback
-    }
-
-    if (!row) {
-      const requests = await ctx.db.query("service_requests").collect();
-      row = requests.find((r) => String(r._id) === idStr);
-    }
-
+    const row = await safeGetInternal(ctx, "service_requests", args.id);
     if (!row) throw new Error("Service request not found");
+
     const patch: Record<string, any> = {};
     if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
     if (args.payment_details !== undefined) {
@@ -107,23 +96,9 @@ export const updatePaymentDetails = mutationGeneric({
 export const addFeedback = mutationGeneric({
   handler: async (ctx, args: any) => {
     if (!args.id) throw new Error("Service request ID is missing.");
-    const idStr = String(args.id);
-    let row = null;
-
-    try {
-      if (idStr.length >= 16) {
-        row = await ctx.db.get(args.id as any);
-      }
-    } catch (e) {
-      // Fallback
-    }
-
-    if (!row) {
-      const requests = await ctx.db.query("service_requests").collect();
-      row = requests.find((r) => String(r._id) === idStr);
-    }
-
+    const row = await safeGetInternal(ctx, "service_requests", args.id);
     if (!row) throw new Error("Service request not found");
+
     await ctx.db.patch(row._id, {
       rating: Number(args.rating),
       review_comment: String(args.review_comment || ""),
@@ -149,23 +124,9 @@ export const recentCompletedRatingsForWorker = queryGeneric({
 export const updateStatus = mutationGeneric({
   handler: async (ctx, args: any) => {
     if (!args.id) throw new Error("Service request ID is missing.");
-    const idStr = String(args.id);
-    let row = null;
-
-    try {
-      if (idStr.length >= 16) {
-        row = await ctx.db.get(args.id as any);
-      }
-    } catch (e) {
-      // Fallback
-    }
-
-    if (!row) {
-      const requests = await ctx.db.query("service_requests").collect();
-      row = requests.find((r) => String(r._id) === idStr);
-    }
-
+    const row = await safeGetInternal(ctx, "service_requests", args.id);
     if (!row) throw new Error("Service request not found");
+
     const patch: Record<string, any> = {};
     if (args.status) {
       patch.status = args.status;

@@ -93,6 +93,10 @@ export default function AdminServiceRequestsPage() {
   };
 
   const handleCancelRequest = async (id: string | number) => {
+    if (!id || id === "undefined") {
+      showToast("Invalid Request ID", "error");
+      return;
+    }
     const confirmed = await showConfirm("Are you sure you want to cancel this service request?");
     if (!confirmed) return;
     setUpdating(id as any);
