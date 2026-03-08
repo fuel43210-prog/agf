@@ -9,6 +9,7 @@ let warnedInsecureSecret = false;
 
 function resolveJwtSecret() {
   const jwtSecretFromEnv = String(process.env.JWT_SECRET || '').trim();
+  console.log("[Auth-Middleware] JWT_SECRET state:", jwtSecretFromEnv ? "SET" : "MISSING");
   const jwtSecretIsInsecure = !jwtSecretFromEnv || jwtSecretFromEnv === DEFAULT_JWT_SECRET;
 
   if (jwtSecretIsInsecure && NODE_ENV === 'production') {
@@ -147,12 +148,12 @@ function verifyToken(token) {
 function extractToken(request) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return null;
-  
+
   const parts = authHeader.split(' ');
   if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
     return null;
   }
-  
+
   return parts[1];
 }
 
@@ -164,11 +165,11 @@ function extractToken(request) {
 function requireAuth(request) {
   const token = extractToken(request);
   const decoded = verifyToken(token);
-  
+
   if (!decoded) {
     return null;
   }
-  
+
   return decoded;
 }
 
@@ -180,16 +181,16 @@ function requireAuth(request) {
  */
 function requireRole(request, requiredRole) {
   const auth = requireAuth(request);
-  
+
   if (!auth) {
     return null;
   }
-  
+
   const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
   if (!roles.includes(auth.role)) {
     return null;
   }
-  
+
   return auth;
 }
 
