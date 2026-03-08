@@ -62,7 +62,7 @@ export async function GET() {
         };
 
         return NextResponse.json(data);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Fuel prices error details:", error);
         return NextResponse.json({
             error: "Failed to fetch fuel prices",
