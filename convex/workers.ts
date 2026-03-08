@@ -39,7 +39,13 @@ export const getByEmail = queryGeneric({
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await ctx.db.get(args.id);
+    try {
+      return await ctx.db.get(args.id);
+    } catch {
+      console.warn(`[convex/workers.ts] Fallback triggered for getById: ${args.id}`);
+      const workers = await ctx.db.query("workers").collect();
+      return workers.find((w) => String(w._id) === String(args.id)) || null;
+    }
   },
 });
 
@@ -106,7 +112,14 @@ export const runMaintenance = mutationGeneric({
 
 export const updateWorkerProfile = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await ctx.db.get(args.id);
+    let worker;
+    try {
+      worker = await ctx.db.get(args.id);
+    } catch {
+      console.warn(`[convex/workers.ts] Fallback triggered for updateWorkerProfile: ${args.id}`);
+      const workers = await ctx.db.query("workers").collect();
+      worker = workers.find((w) => String(w._id) === String(args.id));
+    }
     if (!worker) throw new Error("Worker not found");
 
     const patch: Record<string, any> = {};
@@ -139,7 +152,14 @@ export const updateWorkerProfile = mutationGeneric({
 
 export const lockByLowRating = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await ctx.db.get(args.worker_id);
+    let worker;
+    try {
+      worker = await ctx.db.get(args.worker_id);
+    } catch {
+      console.warn(`[convex/workers.ts] Fallback triggered for lockByLowRating: ${args.worker_id}`);
+      const workers = await ctx.db.query("workers").collect();
+      worker = workers.find((w) => String(w._id) === String(args.worker_id));
+    }
     if (!worker) return { ok: false };
     await ctx.db.patch(worker._id, {
       status: "Offline",
