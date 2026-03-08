@@ -74,32 +74,42 @@ export const getByPaymentId = queryGeneric({
 
 export const updatePaymentDetails = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await getByIdInternal(ctx, args.id);
-    if (!row) throw new Error("Service request not found");
+    try {
+      const row = await getByIdInternal(ctx, args.id);
+      if (!row) throw new Error("Service request not found");
 
-    const patch: Record<string, any> = {};
-    if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
-    if (args.payment_details !== undefined) {
-      patch.payment_details =
-        typeof args.payment_details === "string"
-          ? args.payment_details
-          : JSON.stringify(args.payment_details);
+      const patch: Record<string, any> = {};
+      if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
+      if (args.payment_details !== undefined) {
+        patch.payment_details =
+          typeof args.payment_details === "string"
+            ? args.payment_details
+            : JSON.stringify(args.payment_details);
+      }
+      await ctx.db.patch(row._id, patch);
+      return { ok: true };
+    } catch (err: any) {
+      console.error("updatePaymentDetails error:", err);
+      throw new Error(`Payment update failed: ${err.message}`);
     }
-    await ctx.db.patch(row._id, patch);
-    return { ok: true };
   },
 });
 
 export const addFeedback = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await getByIdInternal(ctx, args.id);
-    if (!row) throw new Error("Service request not found");
+    try {
+      const row = await getByIdInternal(ctx, args.id);
+      if (!row) throw new Error("Service request not found");
 
-    await ctx.db.patch(row._id, {
-      rating: Number(args.rating),
-      review_comment: String(args.review_comment || ""),
-    });
-    return { ok: true, assigned_worker: row.assigned_worker };
+      await ctx.db.patch(row._id, {
+        rating: Number(args.rating),
+        review_comment: String(args.review_comment || ""),
+      });
+      return { ok: true, assigned_worker: row.assigned_worker };
+    } catch (err: any) {
+      console.error("addFeedback error:", err);
+      throw new Error(`Feedback submission failed: ${err.message}`);
+    }
   },
 });
 
@@ -119,25 +129,30 @@ export const recentCompletedRatingsForWorker = queryGeneric({
 
 export const updateStatus = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await getByIdInternal(ctx, args.id);
-    if (!row) throw new Error("Service request not found");
+    try {
+      const row = await getByIdInternal(ctx, args.id);
+      if (!row) throw new Error("Service request not found");
 
-    const patch: Record<string, any> = {};
-    if (args.status) {
-      patch.status = args.status;
-      const now = nowIso();
-      if (args.status === "Assigned") patch.assigned_at = now;
-      if (args.status === "In Progress") patch.in_progress_at = now;
-      if (args.status === "Completed") patch.completed_at = now;
-      if (args.status === "Cancelled") patch.cancelled_at = now;
+      const patch: Record<string, any> = {};
+      if (args.status) {
+        patch.status = args.status;
+        const now = nowIso();
+        if (args.status === "Assigned") patch.assigned_at = now;
+        if (args.status === "In Progress") patch.in_progress_at = now;
+        if (args.status === "Completed") patch.completed_at = now;
+        if (args.status === "Cancelled") patch.cancelled_at = now;
+      }
+      if (args.assigned_worker !== undefined) patch.assigned_worker = sanitizeIdInternal(args.assigned_worker);
+      if (args.cod_failure_reason !== undefined) patch.cod_failure_reason = args.cod_failure_reason;
+      if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
+      if (args.payment_method !== undefined) patch.payment_method = args.payment_method;
+      if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(args.fuel_station_id);
+      await ctx.db.patch(row._id, patch);
+      return { ok: true };
+    } catch (err: any) {
+      console.error("updateStatus error:", err);
+      throw new Error(`Status update failed: ${err.message}`);
     }
-    if (args.assigned_worker !== undefined) patch.assigned_worker = sanitizeIdInternal(args.assigned_worker);
-    if (args.cod_failure_reason !== undefined) patch.cod_failure_reason = args.cod_failure_reason;
-    if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
-    if (args.payment_method !== undefined) patch.payment_method = args.payment_method;
-    if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(args.fuel_station_id);
-    await ctx.db.patch(row._id, patch);
-    return { ok: true };
   },
 });
 

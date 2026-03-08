@@ -47,8 +47,12 @@ export async function PATCH(request, context) {
 
     return NextResponse.json({ success: true, message: `Service request status updated to ${normalizedStatus}` });
   } catch (err) {
-    console.error("Service request update error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Service request update error details:", err);
+    return NextResponse.json({
+      error: err?.message || "Internal server error",
+      details: String(err),
+      stack: err?.stack
+    }, { status: 500 });
   }
 }
 

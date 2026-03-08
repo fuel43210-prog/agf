@@ -14,7 +14,7 @@ export async function GET() {
         const settings = (await convexQuery("admin:getPlatformSettings", {})) || { is_raining: 0 };
 
         const isRaining = !!(settings as any).is_raining;
-        
+
         let prices = { ...FALLBACK_PRICES };
         let source = "Verified Market Rates (Fallback)";
 
@@ -62,7 +62,12 @@ export async function GET() {
         };
 
         return NextResponse.json(data);
-    } catch (error) {
-        return NextResponse.json({ error: "Failed to fetch fuel prices" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Fuel prices error details:", error);
+        return NextResponse.json({
+            error: "Failed to fetch fuel prices",
+            details: String(error),
+            stack: error?.stack
+        }, { status: 500 });
     }
 }

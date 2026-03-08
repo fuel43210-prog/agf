@@ -30,8 +30,12 @@ export async function GET(request) {
     }));
     return NextResponse.json(normalized);
   } catch (err) {
-    console.error("Workers list error:", err);
-    return NextResponse.json({ error: "Failed to load workers" }, { status: 500 });
+    console.error("Workers list error details:", err);
+    return NextResponse.json({
+      error: err?.message || "Failed to load workers",
+      details: String(err),
+      stack: err?.stack
+    }, { status: 500 });
   }
 }
 
@@ -90,7 +94,11 @@ export async function PATCH(request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Worker update error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Worker update error details:", err);
+    return NextResponse.json({
+      error: err?.message || "Internal server error",
+      details: String(err),
+      stack: err?.stack
+    }, { status: 500 });
   }
 }

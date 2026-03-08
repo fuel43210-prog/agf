@@ -48,8 +48,12 @@ export async function GET(request) {
 
     return NextResponse.json(normalized);
   } catch (error) {
-    console.error("GET /api/fuel-stations Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("GET /api/fuel-stations Error details:", error);
+    return NextResponse.json({
+      error: error?.message || "Internal Server Error",
+      details: String(error),
+      stack: error?.stack
+    }, { status: 500 });
   }
 }
 
@@ -104,11 +108,15 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, id: result.id });
   } catch (error) {
-    console.error("Create station error:", error);
+    console.error("Create station error details:", error);
     if (/email already exists/i.test(String(error?.message || ""))) {
       return NextResponse.json({ error: "Email already exists" }, { status: 409 });
     }
-    return NextResponse.json({ error: "Failed to create station" }, { status: 500 });
+    return NextResponse.json({
+      error: error?.message || "Failed to create station",
+      details: String(error),
+      stack: error?.stack
+    }, { status: 500 });
   }
 }
 
