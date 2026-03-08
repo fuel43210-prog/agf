@@ -12,6 +12,7 @@ function resolveEncryptionKey(): string {
         !encryptionKeyFromEnv || encryptionKeyFromEnv === DEFAULT_ENCRYPTION_KEY;
 
     if (encryptionKeyIsInsecure && NODE_ENV === 'production') {
+        console.error(`[Encryption] Critical: ENCRYPTION_KEY is ${!encryptionKeyFromEnv ? 'missing/empty' : 'set to default insecure value'} in production environment.`);
         throw new Error('ENCRYPTION_KEY is missing or insecure in production. Set a strong ENCRYPTION_KEY env var.');
     }
 

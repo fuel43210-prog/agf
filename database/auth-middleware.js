@@ -12,6 +12,7 @@ function resolveJwtSecret() {
   const jwtSecretIsInsecure = !jwtSecretFromEnv || jwtSecretFromEnv === DEFAULT_JWT_SECRET;
 
   if (jwtSecretIsInsecure && NODE_ENV === 'production') {
+    console.error(`[Auth-Middleware] Critical: JWT_SECRET is ${!jwtSecretFromEnv ? 'missing/empty' : 'set to default insecure value'} in production environment.`);
     throw new Error('JWT_SECRET is missing or insecure in production. Set a strong JWT_SECRET env var.');
   }
 
