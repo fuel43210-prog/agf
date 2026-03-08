@@ -55,7 +55,12 @@ export async function GET() {
     }
 
     return new Response(JSON.stringify({ type: "FeatureCollection", features }), { status: 200 });
-  } catch {
-    return new Response(JSON.stringify({ error: "DB query failed" }), { status: 500 });
+  } catch (err) {
+    console.error("Connectivity zones error details:", err);
+    return new Response(JSON.stringify({
+      error: err?.message || "DB query failed",
+      details: String(err),
+      stack: err?.stack
+    }), { status: 500 });
   }
 }

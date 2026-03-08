@@ -57,8 +57,12 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, id: result.id }, { status: 201 });
   } catch (err) {
-    console.error("Service request create error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Service request create error details:", err);
+    return NextResponse.json({
+      error: err?.message || "Internal server error",
+      details: String(err),
+      stack: err?.stack
+    }, { status: 500 });
   }
 }
 
@@ -76,8 +80,12 @@ export async function GET(request) {
     });
     return NextResponse.json(rows || []);
   } catch (err) {
-    console.error("Service requests list error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Service requests list error details:", err);
+    return NextResponse.json({
+      error: err?.message || "Internal server error",
+      details: String(err),
+      stack: err?.stack
+    }, { status: 500 });
   }
 }
 
@@ -122,8 +130,12 @@ export async function PATCH(request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Service request update error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Service request update error details:", err);
+    return NextResponse.json({
+      error: err?.message || "Internal server error",
+      details: String(err),
+      stack: err?.stack
+    }, { status: 500 });
   }
 }
 

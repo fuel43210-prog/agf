@@ -13,7 +13,12 @@ export async function GET() {
       intensity: row.severity === "none" ? 1.0 : 0.6,
     }));
     return new Response(JSON.stringify({ points }), { status: 200 });
-  } catch {
-    return new Response(JSON.stringify({ error: "DB query failed" }), { status: 500 });
+  } catch (err) {
+    console.error("Connectivity heat error details:", err);
+    return new Response(JSON.stringify({
+      error: err?.message || "DB query failed",
+      details: String(err),
+      stack: err?.stack
+    }), { status: 500 });
   }
 }
