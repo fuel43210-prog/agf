@@ -42,7 +42,17 @@ export const list = queryGeneric({
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await ctx.db.get(args.id);
+    try {
+      if (!args.id) return null;
+      // This is the standard and most efficient way to get a document.
+      return await ctx.db.get(args.id);
+    } catch (e) {
+      // This is a fallback for cases where a non-standard string ID might be passed.
+      // It's less efficient as it scans the table.
+      console.warn(`[convex/service_requests.ts] Fallback triggered for getById due to invalid ID format: ${args.id}`);
+      const requests = await ctx.db.query("service_requests").collect();
+      return requests.find((r) => String(r._id) === String(args.id)) || null;
+    }
   },
 });
 
@@ -103,7 +113,18 @@ export const recentCompletedRatingsForWorker = queryGeneric({
 
 export const updateStatus = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await ctx.db.get(args.id);
+    let row;
+    try {
+      if (!args.id) throw new Error("Service request ID is missing.");
+      // This is the standard and most efficient way to get a document.
+      row = await ctx.db.get(args.id);
+    } catch (e) {
+      // This is a fallback for cases where a non-standard string ID might be passed.
+      // It's less efficient as it scans the table.
+      console.warn(`[convex/service_requests.ts] Fallback triggered for updateStatus due to invalid ID format: ${args.id}`);
+      const requests = await ctx.db.query("service_requests").collect();
+      row = requests.find((r) => String(r._id) === String(args.id));
+    }
     if (!row) throw new Error("Service request not found");
     const patch: Record<string, any> = {};
     if (args.status) {
