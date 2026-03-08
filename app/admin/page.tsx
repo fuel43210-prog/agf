@@ -35,8 +35,8 @@ type ActivityItem = {
 };
 
 type ServiceRequest = {
-  id: number;
-  user_id: number | null;
+  id: string | number;
+  user_id: string | number | null;
   vehicle_number: string;
   service_type: string;
   phone_number?: string;
@@ -75,7 +75,7 @@ type Analytics = {
 };
 
 type WorkerFinancial = {
-  id: number;
+  id: string | number;
   first_name: string;
   last_name: string;
   service_type: string;
@@ -97,9 +97,9 @@ type Stats = {
   totalWorkers: number;
   activeWorkers: number;
   activeRequests: number;
-  recentUsers: { id: number; email: string; first_name: string; last_name: string; created_at?: string }[];
+  recentUsers: { id: string | number; email: string; first_name: string; last_name: string; created_at?: string }[];
   recentActivity?: ActivityItem[];
-  activeWorkersList: { id: number; first_name: string; last_name: string; status: string; latitude?: number; longitude?: number; service_type?: string }[];
+  activeWorkersList: { id: string | number; first_name: string; last_name: string; status: string; latitude?: number; longitude?: number; service_type?: string }[];
   serviceRequests?: ServiceRequest[];
   analytics?: Analytics;
   heatmaps?: { cancellations: HeatPoint[]; failures: HeatPoint[] };

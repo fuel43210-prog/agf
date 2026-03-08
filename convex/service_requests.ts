@@ -40,25 +40,18 @@ export const list = queryGeneric({
   },
 });
 
-const safeGetInternal = async (ctx: any, tableName: string, id: any) => {
-  if (!id) return null;
-  const idStr = String(id);
-  // Convex IDs are typically 16+ chars. "undefined" is 9.
-  // We strictly avoid calling db.get if the format looks invalid to prevent 500 errors.
-  if (idStr.length >= 16 && !idStr.includes(" ") && !idStr.includes("\"")) {
-    try {
-      return await ctx.db.get(id as any);
-    } catch (e) {
-      // Ignore and fallback
-    }
+const getByIdInternal = async (ctx: any, id: any) => {
+  if (!id || String(id) === "undefined") return null;
+  try {
+    return await ctx.db.get(id as any);
+  } catch {
+    return null;
   }
-  const rows = await ctx.db.query(tableName as any).collect();
-  return rows.find((r: any) => String(r._id) === idStr) || null;
 };
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await safeGetInternal(ctx, "service_requests", args.id);
+    return await getByIdInternal(ctx, args.id);
   },
 });
 
@@ -76,8 +69,7 @@ export const getByPaymentId = queryGeneric({
 
 export const updatePaymentDetails = mutationGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.id) throw new Error("Service request ID is missing.");
-    const row = await safeGetInternal(ctx, "service_requests", args.id);
+    const row = await getByIdInternal(ctx, args.id);
     if (!row) throw new Error("Service request not found");
 
     const patch: Record<string, any> = {};
@@ -95,8 +87,7 @@ export const updatePaymentDetails = mutationGeneric({
 
 export const addFeedback = mutationGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.id) throw new Error("Service request ID is missing.");
-    const row = await safeGetInternal(ctx, "service_requests", args.id);
+    const row = await getByIdInternal(ctx, args.id);
     if (!row) throw new Error("Service request not found");
 
     await ctx.db.patch(row._id, {
@@ -123,8 +114,7 @@ export const recentCompletedRatingsForWorker = queryGeneric({
 
 export const updateStatus = mutationGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.id) throw new Error("Service request ID is missing.");
-    const row = await safeGetInternal(ctx, "service_requests", args.id);
+    const row = await getByIdInternal(ctx, args.id);
     if (!row) throw new Error("Service request not found");
 
     const patch: Record<string, any> = {};

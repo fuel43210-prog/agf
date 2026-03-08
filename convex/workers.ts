@@ -37,19 +37,18 @@ export const getByEmail = queryGeneric({
   },
 });
 
+const getByIdInternal = async (ctx: any, id: any) => {
+  if (!id || String(id) === "undefined") return null;
+  try {
+    return await ctx.db.get(id as any);
+  } catch {
+    return null;
+  }
+};
+
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.id) return null;
-    const idStr = String(args.id);
-    try {
-      if (idStr.length >= 16) {
-        return await ctx.db.get(args.id as any);
-      }
-    } catch {
-      // Fallback
-    }
-    const workers = await ctx.db.query("workers").collect();
-    return workers.find((w) => String(w._id) === idStr) || null;
+    return await getByIdInternal(ctx, args.id);
   },
 });
 
@@ -116,21 +115,7 @@ export const runMaintenance = mutationGeneric({
 
 export const updateWorkerProfile = mutationGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.id) throw new Error("Worker ID is missing");
-    const idStr = String(args.id);
-    let worker = null;
-    try {
-      if (idStr.length >= 16) {
-        worker = await ctx.db.get(args.id as any);
-      }
-    } catch {
-      // Fallback
-    }
-
-    if (!worker) {
-      const workers = await ctx.db.query("workers").collect();
-      worker = workers.find((w) => String(w._id) === idStr);
-    }
+    const worker = await getByIdInternal(ctx, args.id);
     if (!worker) throw new Error("Worker not found");
 
     const patch: Record<string, any> = {};
@@ -163,21 +148,7 @@ export const updateWorkerProfile = mutationGeneric({
 
 export const lockByLowRating = mutationGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.worker_id) return { ok: false };
-    const idStr = String(args.worker_id);
-    let worker = null;
-    try {
-      if (idStr.length >= 16) {
-        worker = await ctx.db.get(args.worker_id as any);
-      }
-    } catch {
-      // Fallback
-    }
-
-    if (!worker) {
-      const workers = await ctx.db.query("workers").collect();
-      worker = workers.find((w) => String(w._id) === idStr);
-    }
+    const worker = await getByIdInternal(ctx, args.worker_id);
     if (!worker) return { ok: false };
     await ctx.db.patch(worker._id, {
       status: "Offline",

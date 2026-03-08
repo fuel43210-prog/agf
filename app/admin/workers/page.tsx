@@ -325,7 +325,7 @@ export default function AdminWorkersPage() {
               <tbody>
                 {filteredWorkers.map((w, index) => (
                   <tr key={w.id}>
-                    <td>{index + 1}</td>
+                    <td title={String(w.id)}>{String(w.id).slice(-8)}</td>
                     <td>{w.first_name} {w.last_name}</td>
                     <td>{w.email}</td>
                     <td>

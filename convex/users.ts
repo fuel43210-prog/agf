@@ -73,16 +73,11 @@ export const getByEmail = queryGeneric({
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    if (!args.id) return null;
-    const idStr = String(args.id);
+    if (!args.id || String(args.id) === "undefined") return null;
     try {
-      if (idStr.length >= 10) {
-        return await ctx.db.get(args.id as any);
-      }
+      return await ctx.db.get(args.id as any);
     } catch {
-      // Fallback
+      return null;
     }
-    const users = await ctx.db.query("users").collect();
-    return users.find((u) => String(u._id) === idStr) || null;
   },
 });

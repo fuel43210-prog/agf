@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 type User = {
-  id: number;
+  id: string;
   email: string;
   first_name: string;
   last_name: string;
@@ -22,7 +22,7 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone_number: "", role: "User", new_password: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const loadUsers = () => {
     fetch("/api/admin/users")
@@ -97,7 +97,7 @@ export default function AdminUsersPage() {
       .finally(() => setEditSaving(false));
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     const target = users.find((u) => u.id === id);
     if (String(target?.role || "").toLowerCase() === "admin") return;
     setDeleteConfirm(id);
@@ -210,7 +210,7 @@ export default function AdminUsersPage() {
               <tbody>
                 {filteredUsers.map((u, index) => (
                   <tr key={u.id}>
-                    <td>{index + 1}</td>
+                    <td title={u.id}>{u.id.slice(-8)}</td>
                     <td>{u.first_name} {u.last_name}</td>
                     <td>{u.email}</td>
                     <td>{u.phone_number}</td>
