@@ -1030,9 +1030,10 @@ export default function WorkerDashboardPage() {
                     </p>
                   ) : (
                     <ul className="worker-tasks-list">
-                      {matchingPendingTasks.slice(0, 3).map(task => (
+                      {matchingPendingTasks.slice(0, 3).map((task, index) => (
                         <li key={task.id} className="worker-task-item">
                           <div className="worker-task-row">
+                            <span style={{ marginRight: '8px', color: '#94a3b8', fontWeight: 500, fontSize: '0.9em' }}>#{index + 1}</span>
                             <span className="worker-task-vehicle">{task.vehicle_number}</span>
                             <button
                               className="worker-btn worker-btn-primary"
@@ -1095,7 +1096,7 @@ export default function WorkerDashboardPage() {
                   </p>
                 ) : activeTasks.length > 0 ? (
                   <ul className="worker-tasks-list">
-                    {activeTasks.map((task) => {
+                    {activeTasks.map((task, index) => {
                       // Calculate distance to user
                       const distance = (workerPos && task.user_lat && task.user_lon)
                         ? getDistance(workerPos.lat, workerPos.lng, task.user_lat, task.user_lon)
@@ -1107,6 +1108,7 @@ export default function WorkerDashboardPage() {
                       return (
                         <li key={task.id} className="worker-task-item">
                           <div className="worker-task-row">
+                            <span style={{ marginRight: '8px', color: '#94a3b8', fontWeight: 500, fontSize: '0.9em' }}>#{index + 1}</span>
                             <span className="worker-task-vehicle">{task.vehicle_number}</span>
                             <span className={`worker-task-status worker-status-${task.status.toLowerCase().replace(" ", "")}`}>
                               {task.status}
@@ -1282,9 +1284,10 @@ export default function WorkerDashboardPage() {
                   <div className="worker-recommended-tasks">
                     <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#94a3b8', marginBottom: '1rem' }}>Open Requests:</h3>
                     <ul className="worker-tasks-list">
-                      {matchingPendingTasks.map((task) => (
+                      {matchingPendingTasks.map((task, index) => (
                         <li key={task.id} className="worker-task-item">
                           <div className="worker-task-row">
+                            <span style={{ marginRight: '8px', color: '#94a3b8', fontWeight: 500, fontSize: '0.9em' }}>#{index + 1}</span>
                             <span className="worker-task-vehicle">{task.vehicle_number}</span>
                             <button
                               className="worker-btn worker-btn-primary"
@@ -1344,9 +1347,10 @@ export default function WorkerDashboardPage() {
                   <p className="worker-summary-placeholder">No completed jobs yet.</p>
                 ) : (
                   <ul className="worker-tasks-list">
-                    {historyTasks.map((task) => (
+                    {historyTasks.map((task, index) => (
                       <li key={task.id} className="worker-task-item">
                         <div className="worker-task-row">
+                          <span style={{ marginRight: '8px', color: '#94a3b8', fontWeight: 500, fontSize: '0.9em' }}>#{index + 1}</span>
                           <span className="worker-task-vehicle">{task.vehicle_number}</span>
                           <span className={`worker-task-status worker-status-${task.status.toLowerCase()}`}>
                             {task.status}
@@ -1420,7 +1424,7 @@ export default function WorkerDashboardPage() {
                 {payoutHistory.length === 0 ? (
                   <p style={{ margin: 0, color: '#94a3b8' }}>No payouts received yet.</p>
                 ) : (
-                  payoutHistory.map((payout) => (
+                  payoutHistory.map((payout, index) => (
                     <div
                       key={payout.id}
                       style={{
@@ -1432,7 +1436,10 @@ export default function WorkerDashboardPage() {
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'baseline' }}>
-                        <span style={{ color: '#4ade80', fontWeight: 700 }}>+₹{Number(payout.amount || 0).toFixed(0)}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ color: '#64748b', fontSize: '0.9em', fontWeight: 500 }}>#{index + 1}</span>
+                          <span style={{ color: '#4ade80', fontWeight: 700 }}>+₹{Number(payout.amount || 0).toFixed(0)}</span>
+                        </div>
                         <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(payout.created_at).toLocaleString()}</span>
                       </div>
                       {payout.reference_id && (

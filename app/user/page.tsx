@@ -1653,6 +1653,7 @@ export default function UserDashboardPage() {
                           onClick={() => setViewingBillReq(req)}
                         >
                           <div className="premium-item-header">
+                            <span style={{ marginRight: '8px', color: '#94a3b8', fontWeight: 500, fontSize: '0.9em' }}>#{index + 1}</span>
                             <span className="premium-item-title">{req.vehicle_number}</span>
                             <span className={`user-active-request-status user-active-request-status--${req.status.toLowerCase().replace(" ", "-")}`}>
                               {req.status}
@@ -1700,6 +1701,7 @@ export default function UserDashboardPage() {
                           onClick={() => setViewingBillReq(req)}
                         >
                           <div className="premium-item-header">
+                            <span style={{ marginRight: '8px', color: '#94a3b8', fontWeight: 500, fontSize: '0.9em' }}>#{index + 1}</span>
                             <span className="premium-item-title">{req.vehicle_number}</span>
                             <span className={`premium-item-status premium-item-status--${req.status.toLowerCase().replace(" ", "-")}`}>
                               {req.status}
@@ -1775,6 +1777,7 @@ export default function UserDashboardPage() {
                           onClick={() => setViewingBillReq(req)}
                         >
                           <div className="user-history-row">
+                            <span style={{ marginRight: '8px', color: '#94a3b8', fontWeight: 500, fontSize: '0.9em' }}>#{index + 1}</span>
                             <span className="user-history-vehicle">{req.vehicle_number}</span>
                             <span className={`user-history-status user-history-status--${req.status.toLowerCase().replace(" ", "-")}`}>
                               {req.status}
