@@ -45,6 +45,9 @@ export const getById = queryGeneric({
     try {
       if (!args.id) return null;
       // This is the standard and most efficient way to get a document.
+      if (String(args.id).length < 10) {
+        throw new Error("ID too short");
+      }
       return await ctx.db.get(args.id);
     } catch (e) {
       // This is a fallback for cases where a non-standard string ID might be passed.
@@ -73,6 +76,9 @@ export const updatePaymentDetails = mutationGeneric({
     let row;
     try {
       if (!args.id) throw new Error("Service request ID is missing.");
+      if (String(args.id).length < 10) {
+        throw new Error("ID too short");
+      }
       row = await ctx.db.get(args.id);
     } catch (e) {
       console.warn(`[convex/service_requests.ts] Fallback triggered for updatePaymentDetails: ${args.id}`);
@@ -98,6 +104,9 @@ export const addFeedback = mutationGeneric({
     let row;
     try {
       if (!args.id) throw new Error("Service request ID is missing.");
+      if (String(args.id).length < 10) {
+        throw new Error("ID too short");
+      }
       row = await ctx.db.get(args.id);
     } catch (e) {
       console.warn(`[convex/service_requests.ts] Fallback triggered for addFeedback: ${args.id}`);
@@ -133,6 +142,9 @@ export const updateStatus = mutationGeneric({
     try {
       if (!args.id) throw new Error("Service request ID is missing.");
       // This is the standard and most efficient way to get a document.
+      if (String(args.id).length < 10) {
+        throw new Error("ID too short");
+      }
       row = await ctx.db.get(args.id);
     } catch (e) {
       // This is a fallback for cases where a non-standard string ID might be passed.
