@@ -39,13 +39,17 @@ export const getByEmail = queryGeneric({
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
+    if (!args.id) return null;
+    const idStr = String(args.id);
     try {
-      return await ctx.db.get(args.id);
+      if (idStr.length >= 16) {
+        return await ctx.db.get(args.id as any);
+      }
     } catch {
-      console.warn(`[convex/workers.ts] Fallback triggered for getById: ${args.id}`);
-      const workers = await ctx.db.query("workers").collect();
-      return workers.find((w) => String(w._id) === String(args.id)) || null;
+      // Fallback
     }
+    const workers = await ctx.db.query("workers").collect();
+    return workers.find((w) => String(w._id) === idStr) || null;
   },
 });
 
@@ -112,13 +116,20 @@ export const runMaintenance = mutationGeneric({
 
 export const updateWorkerProfile = mutationGeneric({
   handler: async (ctx, args: any) => {
-    let worker;
+    if (!args.id) throw new Error("Worker ID is missing");
+    const idStr = String(args.id);
+    let worker = null;
     try {
-      worker = await ctx.db.get(args.id);
+      if (idStr.length >= 16) {
+        worker = await ctx.db.get(args.id as any);
+      }
     } catch {
-      console.warn(`[convex/workers.ts] Fallback triggered for updateWorkerProfile: ${args.id}`);
+      // Fallback
+    }
+
+    if (!worker) {
       const workers = await ctx.db.query("workers").collect();
-      worker = workers.find((w) => String(w._id) === String(args.id));
+      worker = workers.find((w) => String(w._id) === idStr);
     }
     if (!worker) throw new Error("Worker not found");
 
@@ -152,13 +163,20 @@ export const updateWorkerProfile = mutationGeneric({
 
 export const lockByLowRating = mutationGeneric({
   handler: async (ctx, args: any) => {
-    let worker;
+    if (!args.worker_id) return { ok: false };
+    const idStr = String(args.worker_id);
+    let worker = null;
     try {
-      worker = await ctx.db.get(args.worker_id);
+      if (idStr.length >= 16) {
+        worker = await ctx.db.get(args.worker_id as any);
+      }
     } catch {
-      console.warn(`[convex/workers.ts] Fallback triggered for lockByLowRating: ${args.worker_id}`);
+      // Fallback
+    }
+
+    if (!worker) {
       const workers = await ctx.db.query("workers").collect();
-      worker = workers.find((w) => String(w._id) === String(args.worker_id));
+      worker = workers.find((w) => String(w._id) === idStr);
     }
     if (!worker) return { ok: false };
     await ctx.db.patch(worker._id, {

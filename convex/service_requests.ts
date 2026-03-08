@@ -42,20 +42,20 @@ export const list = queryGeneric({
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
+    if (!args.id) return null;
+    const idStr = String(args.id);
     try {
-      if (!args.id) return null;
-      // This is the standard and most efficient way to get a document.
-      if (String(args.id).length < 10) {
-        throw new Error("ID too short");
+      // Standard Convex ID lookup (requires valid format and length)
+      if (idStr.length >= 16) {
+        return await ctx.db.get(args.id as any);
       }
-      return await ctx.db.get(args.id);
     } catch (e) {
-      // This is a fallback for cases where a non-standard string ID might be passed.
-      // It's less efficient as it scans the table.
-      console.warn(`[convex/service_requests.ts] Fallback triggered for getById due to invalid ID format: ${args.id}`);
-      const requests = await ctx.db.query("service_requests").collect();
-      return requests.find((r) => String(r._id) === String(args.id)) || null;
+      // Fallback
     }
+
+    // Fallback: Scan table for matching _id string
+    const requests = await ctx.db.query("service_requests").collect();
+    return requests.find((r) => String(r._id) === idStr) || null;
   },
 });
 
@@ -73,18 +73,23 @@ export const getByPaymentId = queryGeneric({
 
 export const updatePaymentDetails = mutationGeneric({
   handler: async (ctx, args: any) => {
-    let row;
+    if (!args.id) throw new Error("Service request ID is missing.");
+    const idStr = String(args.id);
+    let row = null;
+
     try {
-      if (!args.id) throw new Error("Service request ID is missing.");
-      if (String(args.id).length < 10) {
-        throw new Error("ID too short");
+      if (idStr.length >= 16) {
+        row = await ctx.db.get(args.id as any);
       }
-      row = await ctx.db.get(args.id);
     } catch (e) {
-      console.warn(`[convex/service_requests.ts] Fallback triggered for updatePaymentDetails: ${args.id}`);
-      const requests = await ctx.db.query("service_requests").collect();
-      row = requests.find((r) => String(r._id) === String(args.id));
+      // Fallback
     }
+
+    if (!row) {
+      const requests = await ctx.db.query("service_requests").collect();
+      row = requests.find((r) => String(r._id) === idStr);
+    }
+
     if (!row) throw new Error("Service request not found");
     const patch: Record<string, any> = {};
     if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
@@ -101,18 +106,23 @@ export const updatePaymentDetails = mutationGeneric({
 
 export const addFeedback = mutationGeneric({
   handler: async (ctx, args: any) => {
-    let row;
+    if (!args.id) throw new Error("Service request ID is missing.");
+    const idStr = String(args.id);
+    let row = null;
+
     try {
-      if (!args.id) throw new Error("Service request ID is missing.");
-      if (String(args.id).length < 10) {
-        throw new Error("ID too short");
+      if (idStr.length >= 16) {
+        row = await ctx.db.get(args.id as any);
       }
-      row = await ctx.db.get(args.id);
     } catch (e) {
-      console.warn(`[convex/service_requests.ts] Fallback triggered for addFeedback: ${args.id}`);
-      const requests = await ctx.db.query("service_requests").collect();
-      row = requests.find((r) => String(r._id) === String(args.id));
+      // Fallback
     }
+
+    if (!row) {
+      const requests = await ctx.db.query("service_requests").collect();
+      row = requests.find((r) => String(r._id) === idStr);
+    }
+
     if (!row) throw new Error("Service request not found");
     await ctx.db.patch(row._id, {
       rating: Number(args.rating),
@@ -138,21 +148,23 @@ export const recentCompletedRatingsForWorker = queryGeneric({
 
 export const updateStatus = mutationGeneric({
   handler: async (ctx, args: any) => {
-    let row;
+    if (!args.id) throw new Error("Service request ID is missing.");
+    const idStr = String(args.id);
+    let row = null;
+
     try {
-      if (!args.id) throw new Error("Service request ID is missing.");
-      // This is the standard and most efficient way to get a document.
-      if (String(args.id).length < 10) {
-        throw new Error("ID too short");
+      if (idStr.length >= 16) {
+        row = await ctx.db.get(args.id as any);
       }
-      row = await ctx.db.get(args.id);
     } catch (e) {
-      // This is a fallback for cases where a non-standard string ID might be passed.
-      // It's less efficient as it scans the table.
-      console.warn(`[convex/service_requests.ts] Fallback triggered for updateStatus due to invalid ID format: ${args.id}`);
-      const requests = await ctx.db.query("service_requests").collect();
-      row = requests.find((r) => String(r._id) === String(args.id));
+      // Fallback
     }
+
+    if (!row) {
+      const requests = await ctx.db.query("service_requests").collect();
+      row = requests.find((r) => String(r._id) === idStr);
+    }
+
     if (!row) throw new Error("Service request not found");
     const patch: Record<string, any> = {};
     if (args.status) {
@@ -172,3 +184,4 @@ export const updateStatus = mutationGeneric({
     return { ok: true };
   },
 });
+

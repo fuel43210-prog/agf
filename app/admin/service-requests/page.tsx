@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useNotification } from "@/app/NotificationSystem";
 
 type ServiceRequest = {
-  id: number;
-  user_id: number | null;
+  id: string | number;
+  user_id: string | number | null;
   vehicle_number: string;
   service_type: string;
   amount?: number;
@@ -19,7 +19,7 @@ type ServiceRequest = {
   in_progress_at?: string;
   completed_at?: string;
   cancelled_at?: string;
-  assigned_worker?: number | null;
+  assigned_worker?: string | number | null;
   first_name?: string;
   last_name?: string;
   worker_first_name?: string;
@@ -39,7 +39,7 @@ export default function AdminServiceRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [updating, setUpdating] = useState<number | null>(null);
+  const [updating, setUpdating] = useState<string | number | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
 
   const distanceKm = (aLat?: number, aLon?: number, bLat?: number, bLon?: number) => {
@@ -85,24 +85,17 @@ export default function AdminServiceRequestsPage() {
       .then((res) => res.json())
       .then((data) => {
         const requests = data.serviceRequests || [];
-        if (Array.isArray(requests)) {
-          // Ensure all IDs are numbers, as API might return strings
-          requests.forEach((req: any) => {
-            req.id = Number(req.id);
-            if (req.user_id) req.user_id = Number(req.user_id);
-            if (req.assigned_worker) req.assigned_worker = Number(req.assigned_worker);
-          });
-        }
+        // No longer converting id to Number(id) as they are Convex string IDs
         setServiceRequests(requests);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   };
 
-  const handleCancelRequest = async (id: number) => {
+  const handleCancelRequest = async (id: string | number) => {
     const confirmed = await showConfirm("Are you sure you want to cancel this service request?");
     if (!confirmed) return;
-    setUpdating(id);
+    setUpdating(id as any);
     fetch(`/api/service-requests/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
