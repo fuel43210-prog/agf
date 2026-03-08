@@ -272,7 +272,14 @@ export const listPendingPayoutLedger = queryGeneric({
 
 export const getStationPayoutContext = queryGeneric({
   handler: async (ctx, args: any) => {
-    const station = await ctx.db.get(args.fuel_station_id);
+    let station;
+    try {
+      station = await ctx.db.get(args.fuel_station_id);
+    } catch {
+      console.warn(`[convex/fuel_station_ops.ts] Fallback triggered for getStationPayoutContext: ${args.fuel_station_id}`);
+      const stations = await ctx.db.query("fuel_stations").collect();
+      station = stations.find((s) => eqId(s._id, args.fuel_station_id));
+    }
     if (!station) return null;
     const rows = await ctx.db.query("fuel_station_bank_details").collect();
     const bank = rows.find((r) => eqId(r.fuel_station_id, station._id)) || null;
@@ -282,7 +289,14 @@ export const getStationPayoutContext = queryGeneric({
 
 export const ensureStationPendingLedger = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const station = await ctx.db.get(args.fuel_station_id);
+    let station;
+    try {
+      station = await ctx.db.get(args.fuel_station_id);
+    } catch {
+      console.warn(`[convex/fuel_station_ops.ts] Fallback triggered for ensureStationPendingLedger: ${args.fuel_station_id}`);
+      const stations = await ctx.db.query("fuel_stations").collect();
+      station = stations.find((s) => eqId(s._id, args.fuel_station_id));
+    }
     if (!station) throw new Error("Fuel station not found");
     const now = nowIso();
     const ledger = await ctx.db.query("fuel_station_ledger").collect();
@@ -435,7 +449,14 @@ export const listStationPendingEarnings = queryGeneric({
 
 export const settleStationPayoutBatch = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const station = await ctx.db.get(args.fuel_station_id);
+    let station;
+    try {
+      station = await ctx.db.get(args.fuel_station_id);
+    } catch {
+      console.warn(`[convex/fuel_station_ops.ts] Fallback triggered for settleStationPayoutBatch: ${args.fuel_station_id}`);
+      const stations = await ctx.db.query("fuel_stations").collect();
+      station = stations.find((s) => eqId(s._id, args.fuel_station_id));
+    }
     if (!station) throw new Error("Fuel station not found");
     const now = nowIso();
     const ledgerIds = new Set((args.ledger_ids || []).map((id: any) => String(id)));
