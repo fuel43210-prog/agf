@@ -6,7 +6,6 @@ export const nuke = mutationGeneric({
             "users",
             "workers",
             "fuel_stations",
-            "service_types",
             "service_requests",
             "payments",
             "settlements",

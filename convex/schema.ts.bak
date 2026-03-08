@@ -74,6 +74,12 @@ export default defineSchema({
     .index("by_user_id", ["user_id"])
     .index("by_email", ["email"]),
 
+  service_types: defineTable({
+    code: v.string(),
+    label: v.string(),
+    amount: v.number(),
+    created_at: v.optional(v.string()),
+  }).index("by_code", ["code"]),
 
   service_requests: defineTable({
     user_id: v.optional(v.id("users")),
