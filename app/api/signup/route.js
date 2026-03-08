@@ -101,9 +101,9 @@ export async function POST(request) {
       );
     }
 
-    console.error("Signup error:", err);
+    console.error("Signup error details:", err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: err?.message || "Internal server error", stack: err?.stack },
       { status: 500 }
     );
   }

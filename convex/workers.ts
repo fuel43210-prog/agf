@@ -4,27 +4,32 @@ const nowIso = () => new Date().toISOString();
 
 export const createWorker = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const existing = await ctx.db
-      .query("workers")
-      .withIndex("by_email", (q) => q.eq("email", String(args.email).toLowerCase()))
-      .first();
-    if (existing) throw new Error("Email already exists");
+    try {
+      const existing = await ctx.db
+        .query("workers")
+        .withIndex("by_email", (q) => q.eq("email", String(args.email || "").toLowerCase()))
+        .first();
+      if (existing) throw new Error("Email already exists");
 
-    const id = await ctx.db.insert("workers", {
-      email: String(args.email).toLowerCase(),
-      password: args.password,
-      first_name: args.first_name,
-      last_name: args.last_name,
-      phone_number: args.phone_number,
-      status: "Available",
-      verified: false,
-      status_locked: false,
-      floater_cash: 0,
-      pending_balance: 0,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    });
-    return { id };
+      const id = await ctx.db.insert("workers", {
+        email: String(args.email || "").toLowerCase(),
+        password: args.password || "",
+        first_name: args.first_name || "",
+        last_name: args.last_name || "",
+        phone_number: args.phone_number || "",
+        status: "Available",
+        verified: false,
+        status_locked: false,
+        floater_cash: 0,
+        pending_balance: 0,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      });
+      return { id: String(id) };
+    } catch (err: any) {
+      console.error("Worker creation mutation error:", err);
+      throw new Error(`Worker creation failed: ${err.message}`);
+    }
   },
 });
 

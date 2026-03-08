@@ -4,37 +4,42 @@ const nowIso = () => new Date().toISOString();
 
 export const signup = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", String(args.email).toLowerCase()))
-      .first();
-    if (existing) {
-      throw new Error("Email already exists");
+    try {
+      const existing = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", String(args.email || "").toLowerCase()))
+        .first();
+      if (existing) {
+        throw new Error("Email already exists");
+      }
+
+      const allUsers = await ctx.db.query("users").collect();
+      const maxSerial = allUsers.reduce((max, u) => {
+        const n = Number((u as any).serial_id || 0);
+        return isNaN(n) ? max : (n > max ? n : max);
+      }, 0);
+
+      const id = await ctx.db.insert("users", {
+        serial_id: maxSerial + 1,
+        email: String(args.email || "").toLowerCase(),
+        password: args.password || "",
+        first_name: args.first_name || "",
+        last_name: args.last_name || "",
+        phone_number: args.phone_number || "",
+        role: args.role || "User",
+        trust_score: 50,
+        cod_success_count: 0,
+        cod_failure_count: 0,
+        cod_disabled: false,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      });
+
+      return { id: String(id) };
+    } catch (err: any) {
+      console.error("Signup mutation error:", err);
+      throw new Error(`Signup failed: ${err.message}`);
     }
-
-    const allUsers = await ctx.db.query("users").collect();
-    const maxSerial = allUsers.reduce((max, u) => {
-      const n = Number((u as any).serial_id || 0);
-      return n > max ? n : max;
-    }, 0);
-
-    const id = await ctx.db.insert("users", {
-      serial_id: maxSerial + 1,
-      email: String(args.email).toLowerCase(),
-      password: args.password,
-      first_name: args.first_name,
-      last_name: args.last_name,
-      phone_number: args.phone_number,
-      role: args.role || "User",
-      trust_score: 50,
-      cod_success_count: 0,
-      cod_failure_count: 0,
-      cod_disabled: false,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    });
-
-    return { id };
   },
 });
 
