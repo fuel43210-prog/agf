@@ -70,7 +70,15 @@ export const getByPaymentId = queryGeneric({
 
 export const updatePaymentDetails = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await ctx.db.get(args.id);
+    let row;
+    try {
+      if (!args.id) throw new Error("Service request ID is missing.");
+      row = await ctx.db.get(args.id);
+    } catch (e) {
+      console.warn(`[convex/service_requests.ts] Fallback triggered for updatePaymentDetails: ${args.id}`);
+      const requests = await ctx.db.query("service_requests").collect();
+      row = requests.find((r) => String(r._id) === String(args.id));
+    }
     if (!row) throw new Error("Service request not found");
     const patch: Record<string, any> = {};
     if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
@@ -87,7 +95,15 @@ export const updatePaymentDetails = mutationGeneric({
 
 export const addFeedback = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await ctx.db.get(args.id);
+    let row;
+    try {
+      if (!args.id) throw new Error("Service request ID is missing.");
+      row = await ctx.db.get(args.id);
+    } catch (e) {
+      console.warn(`[convex/service_requests.ts] Fallback triggered for addFeedback: ${args.id}`);
+      const requests = await ctx.db.query("service_requests").collect();
+      row = requests.find((r) => String(r._id) === String(args.id));
+    }
     if (!row) throw new Error("Service request not found");
     await ctx.db.patch(row._id, {
       rating: Number(args.rating),
