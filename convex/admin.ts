@@ -230,7 +230,13 @@ export const countAdmins = queryGeneric({
 
 export const updateUser = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await ctx.db.get(args.id);
+    let user;
+    try {
+      user = await ctx.db.get(args.id);
+    } catch {
+      const users = await ctx.db.query("users").collect();
+      user = users.find((u) => String(u._id) === String(args.id));
+    }
     if (!user) throw new Error("User not found");
     const users = await ctx.db.query("users").collect();
     const existingEmail = users.find(
@@ -252,7 +258,13 @@ export const updateUser = mutationGeneric({
 
 export const deleteUser = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await ctx.db.get(args.id);
+    let user;
+    try {
+      user = await ctx.db.get(args.id);
+    } catch {
+      const users = await ctx.db.query("users").collect();
+      user = users.find((u) => String(u._id) === String(args.id));
+    }
     if (!user) throw new Error("User not found");
 
     const requests = await ctx.db.query("service_requests").collect();
@@ -317,7 +329,13 @@ export const getWorkerById = queryGeneric({
 
 export const updateWorker = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await ctx.db.get(args.id);
+    let worker;
+    try {
+      worker = await ctx.db.get(args.id);
+    } catch {
+      const workers = await ctx.db.query("workers").collect();
+      worker = workers.find((w) => String(w._id) === String(args.id));
+    }
     if (!worker) throw new Error("Worker not found");
     const workers = await ctx.db.query("workers").collect();
     const existingEmail = workers.find(
@@ -350,7 +368,13 @@ export const updateWorker = mutationGeneric({
 
 export const deleteWorker = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await ctx.db.get(args.id);
+    let worker;
+    try {
+      worker = await ctx.db.get(args.id);
+    } catch {
+      const workers = await ctx.db.query("workers").collect();
+      worker = workers.find((w) => String(w._id) === String(args.id));
+    }
     if (!worker) throw new Error("Worker not found");
     await ctx.db.delete(worker._id);
     return { ok: true };
