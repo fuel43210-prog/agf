@@ -12,11 +12,11 @@ const AdminMap = dynamic(() => import("../admin/AdminMap"), { ssr: false });
 const FuelStationAssignment = dynamic(() => import("./FuelStationAssignment"), { ssr: false });
 
 type ServiceRequest = {
-  id: number;
-  user_id: number | null;
+  id: string;
+  user_id: string | null;
   user_first_name?: string | null;
   user_last_name?: string | null;
-  assigned_worker: number | null;
+  assigned_worker: string | null;
   vehicle_number: string;
   driving_licence: string;
   phone_number: string;
@@ -42,7 +42,7 @@ type SettlementInfo = {
 };
 
 type WorkerPayout = {
-  id: number;
+  id: string;
   amount: number;
   reference_id?: string | null;
   created_at: string;
@@ -63,9 +63,9 @@ declare global {
 const ACTIVE_STATUSES = ["Assigned", "In Progress"];
 const HISTORY_STATUSES = ["Completed", "Cancelled"];
 
-function sameEntityId(a: number | null | undefined, b: number | null | undefined) {
+function sameEntityId(a: string | null | undefined, b: string | null | undefined) {
   if (a == null || b == null) return false;
-  return a === b;
+  return String(a) === String(b);
 }
 
 // Helper for distance calculation (metres) using Haversine formula
@@ -102,11 +102,48 @@ function getWorkerPayout(
   return basePay;
 }
 
+/**
+ * Reads a file, resizes the image if it's large, and returns a compressed data URL.
+ * @param file The image file to process.
+ * @returns A promise that resolves with the data URL of the processed image.
+ */
+const processImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const raw = String(reader.result || "");
+      if (!raw.startsWith("data:image/")) {
+        resolve(raw); // Not an image, return as-is
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const maxSide = 1280;
+        const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * ratio));
+        const h = Math.max(1, Math.round(img.height * ratio));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(raw); // Fallback to original if canvas fails
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL("image/jpeg", 0.72);
+        resolve(compressed.length < raw.length ? compressed : raw);
+      };
+      img.onerror = () => reject(new Error("Invalid image file"));
+      img.src = raw;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function WorkerDashboardPage() {
   const { showToast, showConfirm } = useNotification();
   const [worker, setWorker] = useState<{
     first_name: string;
-    id: number;
+    id: string;
     service_type: string;
     status: string;
     status_locked?: number;
@@ -170,11 +207,11 @@ export default function WorkerDashboardPage() {
       const res = await fetch(`/api/service-requests`);
       let allRequests: ServiceRequest[] = res.ok ? await res.json() : [];
       if (Array.isArray(allRequests)) {
-        // Ensure IDs are numbers, as API might return strings
+        // Ensure IDs are strings
         allRequests.forEach(req => {
-          req.id = Number(req.id);
-          if (req.user_id) req.user_id = Number(req.user_id);
-          if (req.assigned_worker) req.assigned_worker = Number(req.assigned_worker);
+          req.id = String(req.id);
+          if (req.user_id) req.user_id = String(req.user_id);
+          if (req.assigned_worker) req.assigned_worker = String(req.assigned_worker);
         });
       } else {
         allRequests = [];
@@ -187,7 +224,7 @@ export default function WorkerDashboardPage() {
     }
   }, [worker?.id]); // No dependency change needed
 
-  const refreshWorker = useCallback(async (workerId: number) => {
+  const refreshWorker = useCallback(async (workerId: string) => {
     try {
       const res = await fetch(`/api/workers?id=${workerId}`);
       if (!res.ok) return null;
@@ -200,7 +237,7 @@ export default function WorkerDashboardPage() {
   }, []);
 
   const updateWorkerStatus = useCallback(
-    async (workerId: number, status: "Available" | "Busy" | "Offline") => {
+    async (workerId: string, status: "Available" | "Busy" | "Offline") => {
       try {
         const res = await fetch("/api/workers", {
           method: "PATCH",
@@ -235,7 +272,7 @@ export default function WorkerDashboardPage() {
             if (res.ok) {
               const workerData = await res.json();
               if (workerData && workerData.id) {
-                workerData.id = Number(workerData.id);
+                workerData.id = String(workerData.id);
               }
               setWorker(workerData);
               const prevStatus = localStorage.getItem("worker_prev_status");
@@ -269,8 +306,8 @@ export default function WorkerDashboardPage() {
         .then(data => {
           const payouts = Array.isArray(data) ? data : [];
           const total = payouts.reduce((sum: number, p: WorkerPayout) => {
-            // Ensure ID is a number
-            p.id = Number(p.id);
+            // Ensure ID is a string
+            p.id = String(p.id);
             return sum + Number(p.amount);
           }, 0);
           setPayoutHistory(payouts);
@@ -438,7 +475,7 @@ export default function WorkerDashboardPage() {
     }
   }, [worker, clearingFloatingCash, getAuthHeaders, markFloatingCashFailed, refreshWorker, showToast]);
 
-  const updateTaskStatus = async (id: number, newStatus: string) => {
+  const updateTaskStatus = async (id: string, newStatus: string) => {
     try {
       const res = await fetch("/api/service-requests", {
         method: "PATCH",
@@ -462,7 +499,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const acceptTask = async (requestId: number) => {
+  const acceptTask = async (requestId: string) => {
     if (!worker?.id) return;
     if (!canAcceptRequests) return;
     setLoading(true);
@@ -502,7 +539,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const handleAcceptClick = (requestId: number) => {
+  const handleAcceptClick = (requestId: string) => {
     if (!canAcceptRequests) {
       if (worker?.status === "Offline") {
         showBusyNotice("You are Offline. Switch to Available to accept jobs.");
@@ -516,7 +553,7 @@ export default function WorkerDashboardPage() {
     acceptTask(requestId);
   };
 
-  const cancelTask = async (requestId: number) => {
+  const cancelTask = async (requestId: string) => {
     if (!worker?.id) return;
     const confirmed = await showConfirm("Are you sure you want to cancel this job? This will make it available for other workers.");
     if (!confirmed) return;
@@ -546,7 +583,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const markCodFailed = async (requestId: number) => {
+  const markCodFailed = async (requestId: string) => {
     if (!worker?.id) return;
     const confirmed = await showConfirm("Confirm COD failure? Use this only when user refused to pay cash on delivery.");
     if (!confirmed) return;
@@ -579,7 +616,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const openNavigation = (taskId: number, lat: number | null, lon: number | null, label: string) => {
+  const openNavigation = (taskId: string, lat: number | null, lon: number | null, label: string) => {
     if (lat == null || lon == null) return;
 
     // Automatically start job if not already started
@@ -601,77 +638,16 @@ export default function WorkerDashboardPage() {
       return;
     }
 
-    const fileToDataUrl = async (file: File) => {
-      const readAsDataUrl = () =>
-        new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(new Error("Failed to read file"));
-          reader.readAsDataURL(file);
-        });
-
-      const raw = await readAsDataUrl();
-      // Reduce payload size to avoid API/DB limits for base64 uploads.
-      try {
-        if (!raw.startsWith("data:image/")) return raw;
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const el = new Image();
-          el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error("Invalid image"));
-          el.src = raw;
-        });
-
-        const maxSide = 1280;
-        const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
-        const w = Math.max(1, Math.round(img.width * ratio));
-        const h = Math.max(1, Math.round(img.height * ratio));
-
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return raw;
-        ctx.drawImage(img, 0, 0, w, h);
-
-        const compressed = canvas.toDataURL("image/jpeg", 0.72);
-        return compressed.length < raw.length ? compressed : raw;
-      } catch {
-        return raw;
-      }
-    };
-
-    let licensePhoto = docFiles.license;
-    let selfPhoto = docFiles.self;
-
-    if (!licensePhoto) {
-      const raw = licenseInputRef.current?.files?.[0];
-      if (raw) {
-        try {
-          licensePhoto = await fileToDataUrl(raw);
-        } catch {
-          showToast("Failed to read license file.", "error");
-          return;
-        }
-      }
-    }
-
-    if (!selfPhoto) {
-      const raw = selfInputRef.current?.files?.[0];
-      if (raw) {
-        try {
-          selfPhoto = await fileToDataUrl(raw);
-        } catch {
-          showToast("Failed to read selfie file.", "error");
-          return;
-        }
-      }
-    }
+    // The state now holds the processed data URLs from handleFileChange.
+    // The file inputs are just for selection.
+    const { license: licensePhoto, self: selfPhoto } = docFiles;
 
     if (!licensePhoto || !selfPhoto) {
       showToast("Please upload both driving license and selfie.", "error");
       return;
     }
 
+    // Check approximate size to prevent very large uploads.
     const approxBytes = Math.round(((licensePhoto.length || 0) + (selfPhoto.length || 0)) * 0.75);
     if (approxBytes > 1_500_000) {
       showToast("Images are too large. Use smaller photos or lower resolution.", "error");
@@ -710,40 +686,15 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const handleFileChange = (field: 'license' | 'self', e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (field: 'license' | 'self', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const raw = String(reader.result || "");
-        if (!raw.startsWith("data:image/")) {
-          setDocFiles(prev => ({ ...prev, [field]: raw }));
-          return;
-        }
-        const img = new Image();
-        img.onload = () => {
-          const maxSide = 1280;
-          const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
-          const w = Math.max(1, Math.round(img.width * ratio));
-          const h = Math.max(1, Math.round(img.height * ratio));
-          const canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            setDocFiles(prev => ({ ...prev, [field]: raw }));
-            return;
-          }
-          ctx.drawImage(img, 0, 0, w, h);
-          const compressed = canvas.toDataURL("image/jpeg", 0.72);
-          setDocFiles(prev => ({ ...prev, [field]: compressed.length < raw.length ? compressed : raw }));
-        };
-        img.onerror = () => {
-          setDocFiles(prev => ({ ...prev, [field]: raw }));
-        };
-        img.src = raw;
-      };
-      reader.readAsDataURL(file);
+      try {
+        const dataUrl = await processImageFile(file);
+        setDocFiles(prev => ({ ...prev, [field]: dataUrl }));
+      } catch (error: any) {
+        showToast(error?.message || 'Failed to process image.', 'error');
+      }
     }
   };
 
