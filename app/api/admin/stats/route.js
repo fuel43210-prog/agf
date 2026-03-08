@@ -262,23 +262,24 @@ export async function GET(request) {
       { online_earnings: 0, cod_earnings: 0, total_earnings: 0 }
     );
 
-    // REFACTORED: Replace in-memory calculation with a dedicated, efficient database query.
-    // This assumes you create a `queries/admin.js` function `getFinancialsByWorker` in Convex
-    // that performs the aggregation at the database level.
-    const workerFinancialsFromDB = await convexQuery("admin:getFinancialsByWorker", {
-      startDate: rangeStartDate.toISOString(),
-    }) || [];
-
-    // Join the financial data with worker info
-    const workerFinancials = workers.map(w => {
-      const financials = workerFinancialsFromDB.find(fin => String(fin.worker_id) === String(w._id));
+    const workerFinancials = workers.map((w) => {
+      const byWorker = completedPaid.filter((r) => String(r.assigned_worker || "") === String(w._id));
+      const online_earnings = byWorker
+        .filter((r) => String(r.payment_method || "").toUpperCase() === "ONLINE")
+        .reduce((s, r) => s + Number(r.amount || 0), 0);
+      const cod_earnings = byWorker
+        .filter((r) => String(r.payment_method || "").toUpperCase() === "COD")
+        .reduce((s, r) => s + Number(r.amount || 0), 0);
       return {
-        ...w, // includes id, first_name, last_name, service_type
+        id: w._id,
+        first_name: w.first_name,
+        last_name: w.last_name,
+        service_type: w.service_type,
         current_float: Number(w.floater_cash || 0),
-        online_earnings: financials?.online_earnings || 0,
-        cod_earnings: financials?.cod_earnings || 0,
-      }
-    })
+        online_earnings,
+        cod_earnings,
+      };
+    });
 
     return NextResponse.json({
       totalUsers,

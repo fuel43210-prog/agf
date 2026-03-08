@@ -1151,3 +1151,49 @@ export const settlementSummary = queryGeneric({
     };
   },
 });
+
+export const getFinancialsByWorker = queryGeneric({
+  handler: async (ctx, args: any) => {
+    const startDate = args.startDate;
+    if (!startDate) {
+      return [];
+    }
+
+    // This query is most efficient with a database index on ["status", "completed_at"]
+    const completedPaidRequests = await ctx.db
+      .query("service_requests")
+      // Assuming an index on 'status' exists for performance.
+      .withIndex("by_status", (q) => q.eq("status", "Completed"))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("payment_status"), "PAID"),
+          q.gte(q.field("completed_at"), startDate)
+        )
+      )
+      .collect();
+
+    const financialsByWorker = new Map<string, { worker_id: string; online_earnings: number; cod_earnings: number }>();
+
+    for (const req of completedPaidRequests) {
+      if (!req.assigned_worker) continue;
+
+      const workerId = req.assigned_worker.toString();
+      const current = financialsByWorker.get(workerId) || {
+        worker_id: workerId,
+        online_earnings: 0,
+        cod_earnings: 0,
+      };
+
+      const amount = Number(req.amount || 0);
+      if (String(req.payment_method || "").toUpperCase() === "ONLINE") {
+        current.online_earnings += amount;
+      } else if (String(req.payment_method || "").toUpperCase() === "COD") {
+        current.cod_earnings += amount;
+      }
+      
+      financialsByWorker.set(workerId, current);
+    }
+
+    return Array.from(financialsByWorker.values());
+  },
+});
