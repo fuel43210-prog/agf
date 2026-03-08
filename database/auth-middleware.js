@@ -23,8 +23,35 @@ function resolveJwtSecret() {
   return jwtSecretFromEnv || DEFAULT_JWT_SECRET;
 }
 
-const JWT_SECRET = String(process.env.JWT_SECRET || '').trim() || DEFAULT_JWT_SECRET;
 const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '7d';
+
+/**
+ * Parses an expiry string (e.g., '7d', '1h', '30m') and returns a UNIX timestamp.
+ * @param {string} expiryString - The string to parse.
+ * @returns {number} The future expiration timestamp in seconds.
+ */
+function getExpiryTimestamp(expiryString) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const defaultExpirySeconds = 7 * 24 * 60 * 60; // 7 days
+
+  if (typeof expiryString !== 'string' || !expiryString) {
+    return nowSeconds + defaultExpirySeconds;
+  }
+
+  const unit = expiryString.slice(-1);
+  const value = parseInt(expiryString.slice(0, -1), 10);
+
+  if (isNaN(value)) {
+    return nowSeconds + defaultExpirySeconds;
+  }
+
+  switch (unit) {
+    case 'm': return nowSeconds + value * 60;
+    case 'h': return nowSeconds + value * 3600;
+    case 'd': return nowSeconds + value * 86400;
+    default: return nowSeconds + defaultExpirySeconds;
+  }
+}
 
 function base64UrlEncode(str) {
   return Buffer.from(str).toString('base64')
@@ -49,13 +76,12 @@ function base64UrlDecode(str) {
 function generateToken(user) {
   const jwtSecret = resolveJwtSecret();
   const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
   const payload = {
     id: user.id,
     email: user.email,
     role: user.role,
-    iat: now,
-    exp: now + (7 * 24 * 60 * 60) // Default 7 days
+    iat: Math.floor(Date.now() / 1000),
+    exp: getExpiryTimestamp(TOKEN_EXPIRY)
   };
 
   const encodedHeader = base64UrlEncode(JSON.stringify(header));
@@ -230,6 +256,5 @@ module.exports = {
   requireWorker,
   errorResponse,
   successResponse,
-  JWT_SECRET,
   TOKEN_EXPIRY,
 };
