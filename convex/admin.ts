@@ -166,7 +166,13 @@ export const listCodUsers = queryGeneric({
 
 export const updateCodUser = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await ctx.db.get(args.user_id);
+    let user;
+    try {
+      user = await ctx.db.get(args.user_id);
+    } catch {
+      const users = await ctx.db.query("users").collect();
+      user = users.find((u) => String(u._id) === String(args.user_id));
+    }
     if (!user || (user.role || "User") !== "User") {
       throw new Error("User not found or not eligible for COD controls");
     }
@@ -217,7 +223,12 @@ export const listUsers = queryGeneric({
 
 export const getUserById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await ctx.db.get(args.id);
+    try {
+      return await ctx.db.get(args.id);
+    } catch {
+      const users = await ctx.db.query("users").collect();
+      return users.find((u) => String(u._id) === String(args.id)) || null;
+    }
   },
 });
 
@@ -402,7 +413,13 @@ export const getWorkerReviews = queryGeneric({
 
 export const collectWorkerCash = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await ctx.db.get(args.worker_id);
+    let worker;
+    try {
+      worker = await ctx.db.get(args.worker_id);
+    } catch {
+      const workers = await ctx.db.query("workers").collect();
+      worker = workers.find((w) => String(w._id) === String(args.worker_id));
+    }
     if (!worker) throw new Error("Worker not found");
     const floaterCashAmount = Number(worker.floater_cash || 0);
     const now = nowIso();
@@ -631,7 +648,13 @@ export const saveWorkerPayoutRefs = mutationGeneric({
 
 export const finalizeWorkerPayout = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await ctx.db.get(args.worker_id);
+    let worker;
+    try {
+      worker = await ctx.db.get(args.worker_id);
+    } catch {
+      const workers = await ctx.db.query("workers").collect();
+      worker = workers.find((w) => String(w._id) === String(args.worker_id));
+    }
     if (!worker) throw new Error("Worker not found");
     const amount = Number(args.amount || 0);
     const now = nowIso();
@@ -718,9 +741,21 @@ export const getFloatingPaymentByOrder = queryGeneric({
 
 export const applyFloatingPaymentSuccess = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const payment = await ctx.db.get(args.payment_id);
+    let payment;
+    try {
+      payment = await ctx.db.get(args.payment_id);
+    } catch {
+      const payments = await ctx.db.query("floating_cash_payments").collect();
+      payment = payments.find((p) => String(p._id) === String(args.payment_id));
+    }
     if (!payment) throw new Error("Payment order not found.");
-    const worker = await ctx.db.get(args.worker_id);
+    let worker;
+    try {
+      worker = await ctx.db.get(args.worker_id);
+    } catch {
+      const workers = await ctx.db.query("workers").collect();
+      worker = workers.find((w) => String(w._id) === String(args.worker_id));
+    }
     if (!worker) throw new Error("Worker not found");
     if (String(payment.worker_id || "") !== String(worker._id)) throw new Error("Forbidden");
     if (String(payment.status || "") === "paid") return { already_processed: true, amount: Number(payment.amount || 0) };
@@ -803,7 +838,13 @@ export const getFuelStationAdminDetails = queryGeneric({
 
 export const updateFuelStationAdmin = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const station = await ctx.db.get(args.id);
+    let station;
+    try {
+      station = await ctx.db.get(args.id);
+    } catch {
+      const stations = await ctx.db.query("fuel_stations").collect();
+      station = stations.find((s) => String(s._id) === String(args.id));
+    }
     if (!station) throw new Error("Fuel station not found");
     const patch: Record<string, any> = {};
     const fields = ["is_verified", "is_open", "cod_enabled", "cod_balance_limit", "platform_trust_flag"];
@@ -828,7 +869,13 @@ export const updateFuelStationAdmin = mutationGeneric({
 
 export const setUserPassword = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await ctx.db.get(args.user_id);
+    let user;
+    try {
+      user = await ctx.db.get(args.user_id);
+    } catch {
+      const users = await ctx.db.query("users").collect();
+      user = users.find((u) => String(u._id) === String(args.user_id));
+    }
     if (!user) return { ok: false };
     await ctx.db.patch(user._id, { password: args.password, ...(args.email ? { email: args.email } : {}) });
     return { ok: true };
@@ -837,7 +884,13 @@ export const setUserPassword = mutationGeneric({
 
 export const deleteFuelStationDeep = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const station = await ctx.db.get(args.id);
+    let station;
+    try {
+      station = await ctx.db.get(args.id);
+    } catch {
+      const stations = await ctx.db.query("fuel_stations").collect();
+      station = stations.find((s) => String(s._id) === String(args.id));
+    }
     if (!station) throw new Error("Fuel station not found");
 
     const tablesToClean = [
@@ -917,7 +970,13 @@ export const listPayments = queryGeneric({
 
 export const reconcilePayment = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const payment = await ctx.db.get(args.payment_id);
+    let payment;
+    try {
+      payment = await ctx.db.get(args.payment_id);
+    } catch {
+      const payments = await ctx.db.query("payments").collect();
+      payment = payments.find((p) => String(p._id) === String(args.payment_id));
+    }
     if (!payment) throw new Error("Payment not found");
     await ctx.db.patch(payment._id, { status: args.status, updated_at: nowIso() });
     return { ok: true };
@@ -1068,7 +1127,13 @@ export const listSettlements = queryGeneric({
 
 export const reconcileSettlement = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await ctx.db.get(args.settlement_id);
+    let row;
+    try {
+      row = await ctx.db.get(args.settlement_id);
+    } catch {
+      const settlements = await ctx.db.query("settlements").collect();
+      row = settlements.find((s) => String(s._id) === String(args.settlement_id));
+    }
     if (!row) throw new Error("Settlement not found");
     await ctx.db.patch(row._id, {
       status: "reconciled",

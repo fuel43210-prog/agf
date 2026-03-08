@@ -12,7 +12,7 @@ const UserMap = dynamic(() => import("./UserMap"), { ssr: false });
 const RequestLocationPicker = dynamic(() => import("./RequestLocationPicker"), { ssr: false });
 
 type Worker = {
-  id: string;
+  id: number;
   first_name: string;
   last_name: string;
   status: string;
@@ -23,8 +23,8 @@ type Worker = {
 };
 
 type ServiceRequest = {
-  id: string;
-  user_id: string | null;
+  id: number;
+  user_id: number | null;
   vehicle_number: string;
   driving_licence: string;
   phone_number: string;
@@ -32,7 +32,7 @@ type ServiceRequest = {
   amount: number;
   status: string;
   created_at: string;
-  assigned_worker?: string | null;
+  assigned_worker?: number | null;
   user_lat?: number | null;
   user_lon?: number | null;
   rating?: number;
@@ -44,7 +44,7 @@ type ServiceRequest = {
 type CodEligibility = {
   allowed: boolean;
   reason?: string;
-  stationId?: string;
+  stationId?: number;
 };
 
 type BillPreview = {
@@ -75,7 +75,7 @@ export default function UserDashboardPage() {
   const { showToast } = useNotification();
   const [user, setUser] = useState<{
     first_name: string;
-    id?: string;
+    id?: number;
     phone_number?: string;
     driving_licence?: string;
   } | null>(null);
@@ -200,11 +200,11 @@ export default function UserDashboardPage() {
       const res = await fetch(url);
       let data = res.ok ? await res.json() : [];
       if (Array.isArray(data)) {
-        // Ensure IDs are strings
+        // Ensure IDs are numbers
         data.forEach(req => {
-          req.id = String(req.id);
-          if (req.user_id) req.user_id = String(req.user_id);
-          if (req.assigned_worker) req.assigned_worker = String(req.assigned_worker);
+          req.id = Number(req.id);
+          if (req.user_id) req.user_id = Number(req.user_id);
+          if (req.assigned_worker) req.assigned_worker = Number(req.assigned_worker);
         });
       }
       setServiceRequests(Array.isArray(data) ? data : []);
@@ -229,7 +229,7 @@ export default function UserDashboardPage() {
         }
         setUser({
           first_name: data.first_name || "User",
-          id: data.id != null ? String(data.id) : undefined,
+          id: data.id != null ? Number(data.id) : undefined,
           phone_number: data.phone_number || "",
           driving_licence: data.driving_licence || "",
         });
@@ -693,8 +693,8 @@ export default function UserDashboardPage() {
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         const workerList = Array.isArray(data) ? data : [];
-        // Ensure worker IDs are strings
-        workerList.forEach(w => w.id = String(w.id));
+        // Ensure worker IDs are numbers
+        workerList.forEach(w => w.id = Number(w.id));
         setWorkers(workerList);
       })
       .catch(() => setWorkers([]))
@@ -739,7 +739,7 @@ export default function UserDashboardPage() {
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (!cancelled && data && !data.error) {
-            data.id = String(data.id); // Ensure worker ID is a string
+            data.id = Number(data.id); // Ensure worker ID is a number
             setAssignedWorker(data);
           } else if (!cancelled) {
             setAssignedWorker(null);
@@ -879,7 +879,7 @@ export default function UserDashboardPage() {
     return `${mins}:${secs}`;
   };
 
-  const handleUserCancelRequest = async (id: string) => {
+  const handleUserCancelRequest = async (id: number) => {
     try {
       const res = await fetch(`/api/service-requests/${id}`, {
         method: "PATCH",
