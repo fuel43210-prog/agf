@@ -12,11 +12,11 @@ const AdminMap = dynamic(() => import("../admin/AdminMap"), { ssr: false });
 const FuelStationAssignment = dynamic(() => import("./FuelStationAssignment"), { ssr: false });
 
 type ServiceRequest = {
-  id: number;
-  user_id: number | null;
+  id: string;
+  user_id: string | null;
   user_first_name?: string | null;
   user_last_name?: string | null;
-  assigned_worker: number | null;
+  assigned_worker: string | null;
   vehicle_number: string;
   driving_licence: string;
   phone_number: string;
@@ -42,7 +42,7 @@ type SettlementInfo = {
 };
 
 type WorkerPayout = {
-  id: number;
+  id: string;
   amount: number;
   reference_id?: string | null;
   created_at: string;
@@ -65,7 +65,7 @@ const HISTORY_STATUSES = ["Completed", "Cancelled"];
 
 function sameEntityId(a: number | string | null | undefined, b: number | string | null | undefined) {
   if (a == null || b == null) return false;
-  return Number(a) === Number(b);
+  return String(a) === String(b);
 }
 
 // Helper for distance calculation (metres) using Haversine formula
@@ -143,7 +143,7 @@ export default function WorkerDashboardPage() {
   const { showToast, showConfirm } = useNotification();
   const [worker, setWorker] = useState<{
     first_name: string;
-    id: number;
+    id: string;
     service_type: string;
     status: string;
     status_locked?: number;
@@ -207,11 +207,11 @@ export default function WorkerDashboardPage() {
       const res = await fetch(`/api/service-requests`);
       let allRequests: ServiceRequest[] = res.ok ? await res.json() : [];
       if (Array.isArray(allRequests)) {
-        // Ensure IDs are numbers
+        // Ensure IDs are strings
         allRequests.forEach(req => {
-          req.id = Number(req.id);
-          if (req.user_id) req.user_id = Number(req.user_id);
-          if (req.assigned_worker) req.assigned_worker = Number(req.assigned_worker);
+          req.id = String(req.id);
+          if (req.user_id) req.user_id = String(req.user_id);
+          if (req.assigned_worker) req.assigned_worker = String(req.assigned_worker);
         });
       } else {
         allRequests = [];
@@ -224,7 +224,7 @@ export default function WorkerDashboardPage() {
     }
   }, [worker?.id]); // No dependency change needed
 
-  const refreshWorker = useCallback(async (workerId: number) => {
+  const refreshWorker = useCallback(async (workerId: string) => {
     try {
       const res = await fetch(`/api/workers?id=${workerId}`);
       if (!res.ok) return null;
@@ -237,7 +237,7 @@ export default function WorkerDashboardPage() {
   }, []);
 
   const updateWorkerStatus = useCallback(
-    async (workerId: number, status: "Available" | "Busy" | "Offline") => {
+    async (workerId: string, status: "Available" | "Busy" | "Offline") => {
       try {
         const res = await fetch("/api/workers", {
           method: "PATCH",
@@ -272,7 +272,7 @@ export default function WorkerDashboardPage() {
             if (res.ok) {
               const workerData = await res.json();
               if (workerData && workerData.id) {
-                workerData.id = Number(workerData.id);
+                workerData.id = String(workerData.id);
               }
               setWorker(workerData);
               const prevStatus = localStorage.getItem("worker_prev_status");
@@ -306,8 +306,8 @@ export default function WorkerDashboardPage() {
         .then(data => {
           const payouts = Array.isArray(data) ? data : [];
           const total = payouts.reduce((sum: number, p: WorkerPayout) => {
-            // Ensure ID is a number
-            p.id = Number(p.id);
+            // Ensure ID is a string
+            p.id = String(p.id);
             return sum + Number(p.amount);
           }, 0);
           setPayoutHistory(payouts);
@@ -381,7 +381,7 @@ export default function WorkerDashboardPage() {
     }, 2000);
   };
 
-  const handleAssignmentReceived = useCallback((taskId: number, assignment: any) => {
+  const handleAssignmentReceived = useCallback((taskId: string, assignment: any) => {
     setServiceRequests(prev => prev.map(r => r.id === taskId ? {
       ...r,
       fuel_station_name: assignment.name,
@@ -475,7 +475,7 @@ export default function WorkerDashboardPage() {
     }
   }, [worker, clearingFloatingCash, getAuthHeaders, markFloatingCashFailed, refreshWorker, showToast]);
 
-  const updateTaskStatus = async (id: number, newStatus: string) => {
+  const updateTaskStatus = async (id: string, newStatus: string) => {
     try {
       const res = await fetch("/api/service-requests", {
         method: "PATCH",
@@ -499,7 +499,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const acceptTask = async (requestId: number) => {
+  const acceptTask = async (requestId: string) => {
     if (!worker?.id) return;
     if (!canAcceptRequests) return;
     setLoading(true);
@@ -539,7 +539,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const handleAcceptClick = (requestId: number) => {
+  const handleAcceptClick = (requestId: string) => {
     if (!canAcceptRequests) {
       if (worker?.status === "Offline") {
         showBusyNotice("You are Offline. Switch to Available to accept jobs.");
@@ -553,7 +553,7 @@ export default function WorkerDashboardPage() {
     acceptTask(requestId);
   };
 
-  const cancelTask = async (requestId: number) => {
+  const cancelTask = async (requestId: string) => {
     if (!worker?.id) return;
     const confirmed = await showConfirm("Are you sure you want to cancel this job? This will make it available for other workers.");
     if (!confirmed) return;
@@ -583,7 +583,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const markCodFailed = async (requestId: number) => {
+  const markCodFailed = async (requestId: string) => {
     if (!worker?.id) return;
     const confirmed = await showConfirm("Confirm COD failure? Use this only when user refused to pay cash on delivery.");
     if (!confirmed) return;
@@ -616,7 +616,7 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  const openNavigation = (taskId: number, lat: number | null, lon: number | null, label: string) => {
+  const openNavigation = (taskId: string, lat: number | null, lon: number | null, label: string) => {
     if (lat == null || lon == null) return;
 
     // Automatically start job if not already started
