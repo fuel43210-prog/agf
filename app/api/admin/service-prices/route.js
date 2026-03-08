@@ -6,7 +6,7 @@ export async function GET() {
         await convexMutation("admin:ensureDefaultServicePrices", {});
         const prices = (await convexQuery("admin:listServicePrices", {})) || [];
         return NextResponse.json(prices);
-    } catch (err: any) {
+    } catch (err) {
         console.error("Service prices fetch error details:", err);
         return NextResponse.json({
             error: err?.message || "Internal server error",
@@ -16,7 +16,7 @@ export async function GET() {
     }
 }
 
-export async function POST(request: Request) {
+export async function POST(request) {
     try {
         const body = await request.json();
         const { prices } = body; // Expected: [{ service_type: 'crane', amount: 1500 }, ...]
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         await convexMutation("admin:upsertServicePrices", { prices });
 
         return NextResponse.json({ success: true });
-    } catch (err: any) {
+    } catch (err) {
         console.error("Service prices update error details:", err);
         return NextResponse.json({
             error: err?.message || "Internal server error",
