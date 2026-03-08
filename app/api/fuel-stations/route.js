@@ -18,11 +18,12 @@ export async function GET(request) {
   const id = searchParams.get("id");
 
   try {
-    const stations = await convexQuery("fuel_stations:list", {
-      search: search || undefined,
-      verified_only: verifiedOnly || undefined,
-      id: id || undefined,
-    });
+    const args = {};
+    if (search) args.search = search;
+    if (verifiedOnly) args.verified_only = verifiedOnly;
+    if (id) args.id = id;
+
+    const stations = await convexQuery("fuel_stations:list", args);
     const normalized = (stations || []).map((station) => ({
       ...station,
       id: station.id || station._id,

@@ -15,7 +15,7 @@ export async function GET(request) {
       const rows = (await convexQuery("admin:listWorkerPayouts", { worker_id })) || [];
       return NextResponse.json(rows);
     }
-    
+
     return NextResponse.json([]);
   } catch (err) {
     console.error("Payouts API Error:", err);
@@ -27,17 +27,16 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { worker_id, amount, reference_id, notes } = body;
-    
+
     if (!worker_id || !amount) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    await convexMutation("admin:createWorkerPayout", {
-      worker_id,
-      amount,
-      reference_id: reference_id || undefined,
-      notes: notes || undefined,
-    });
+    const args = { worker_id, amount };
+    if (reference_id) args.reference_id = reference_id;
+    if (notes) args.notes = notes;
+
+    await convexMutation("admin:createWorkerPayout", args);
 
     return NextResponse.json({ success: true });
   } catch (err) {

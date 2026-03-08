@@ -31,15 +31,17 @@ export async function PATCH(request, context) {
     }
 
     const password = new_password?.trim() ? await bcrypt.hash(String(new_password).trim(), 10) : undefined;
-    await convexMutation("admin:updateUser", {
+    const args = {
       id,
       first_name,
       last_name,
       email,
       phone_number,
       role,
-      password,
-    });
+    };
+    if (password) args.password = password;
+
+    await convexMutation("admin:updateUser", args);
 
     const changes = [];
     if (existing.first_name !== first_name || existing.last_name !== last_name) changes.push("name");

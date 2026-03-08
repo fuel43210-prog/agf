@@ -65,7 +65,7 @@ export async function PATCH(request, context) {
     const finalVerified = verified !== undefined ? (verified ? 1 : 0) : existing.verified ? 1 : 0;
     const password = new_password?.trim() ? await bcrypt.hash(String(new_password).trim(), 10) : undefined;
 
-    await convexMutation("admin:updateWorker", {
+    const args = {
       id,
       first_name,
       last_name,
@@ -74,8 +74,10 @@ export async function PATCH(request, context) {
       status,
       status_locked: Boolean(finalLock),
       verified: Boolean(finalVerified),
-      password,
-    });
+    };
+    if (password) args.password = password;
+
+    await convexMutation("admin:updateWorker", args);
 
     const changes = [];
     if (existing.first_name !== first_name || existing.last_name !== last_name) changes.push("name");

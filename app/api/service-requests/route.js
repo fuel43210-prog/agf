@@ -73,11 +73,14 @@ export async function GET(request) {
     const user_id = url.searchParams.get("user_id");
     const assigned_worker = url.searchParams.get("assigned_worker");
 
-    const rows = await convexQuery("service_requests:list", {
-      status: status || undefined,
-      user_id: user_id || undefined,
-      assigned_worker: assigned_worker || undefined,
-    });
+    const args = {};
+    if (status) args.status = status;
+    if (user_id) args.user_id = user_id;
+    if (assigned_worker) args.assigned_worker = assigned_worker;
+
+    const rows = await convexQuery("service_requests:list", args);
+    console.log("Service requests fetched with filters:", args);
+    console.log("Rows count:", rows?.length);
     return NextResponse.json(rows || []);
   } catch (err) {
     console.error("Service requests list error details:", err);

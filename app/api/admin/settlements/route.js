@@ -12,15 +12,14 @@ export async function GET(request) {
     const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 100);
     const offset = Number(url.searchParams.get("offset")) || 0;
 
-    const result = await convexQuery("admin:listSettlements", {
-      worker_id: workerId || undefined,
-      fuel_station_id: fuelStationId || undefined,
-      status: status || undefined,
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-      limit,
-      offset,
-    });
+    const args = { limit, offset };
+    if (workerId) args.worker_id = workerId;
+    if (fuelStationId) args.fuel_station_id = fuelStationId;
+    if (status) args.status = status;
+    if (startDate) args.start_date = startDate;
+    if (endDate) args.end_date = endDate;
+
+    const result = await convexQuery("admin:listSettlements", args);
 
     return NextResponse.json({
       success: true,

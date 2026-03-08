@@ -171,12 +171,10 @@ async function getAlternativeFuelStationsConvex({
   limit = 5,
   max_radius_km = 20,
 }) {
-  const stations =
-    (await convexQuery("fuel_station_ops:listStationsWithStock", {
-      fuel_type,
-      litres,
-      excluded_station_id: excluded_station_id || undefined,
-    })) || [];
+  const args = { fuel_type, litres };
+  if (excluded_station_id) args.excluded_station_id = excluded_station_id;
+
+  const stations = (await convexQuery("fuel_station_ops:listStationsWithStock", args)) || [];
   const eligible = stations.filter((s) => boolFlag(s.is_open, true) && boolFlag(s.is_verified, true));
   const candidates = eligible.length > 0 ? eligible : stations;
 
