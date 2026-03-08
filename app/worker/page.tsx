@@ -381,7 +381,7 @@ export default function WorkerDashboardPage() {
     }, 2000);
   };
 
-  const handleAssignmentReceived = useCallback((taskId: number, assignment: any) => {
+  const handleAssignmentReceived = useCallback((taskId: string, assignment: any) => {
     setServiceRequests(prev => prev.map(r => r.id === taskId ? {
       ...r,
       fuel_station_name: assignment.name,
