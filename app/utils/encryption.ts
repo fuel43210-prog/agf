@@ -44,13 +44,22 @@ export function encrypt(text: string): string {
 
 export function decrypt(text: string): string {
     if (!text) return '';
-    const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift()!, 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    try {
+        const textParts = text.split(':');
+        if (textParts.length < 2) {
+            console.error('Invalid encrypted text format: missing IV separator.');
+            return '';
+        }
+        const iv = Buffer.from(textParts.shift()!, 'hex');
+        const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+        const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return decrypted.toString();
+    } catch (error) {
+        console.error('Decryption failed. The input may be malformed or the key may have changed.', error);
+        return ''; // Fail gracefully instead of crashing
+    }
 }
 
 export function maskValue(value: string, visibleSuffixLen: number = 4): string {
