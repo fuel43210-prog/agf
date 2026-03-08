@@ -2,6 +2,15 @@ import { mutationGeneric, queryGeneric } from "convex/server";
 
 const nowIso = () => new Date().toISOString();
 
+const getByIdInternal = async (ctx: any, id: any) => {
+  if (!id || String(id) === "undefined") return null;
+  try {
+    return await ctx.db.get(id as any);
+  } catch {
+    return null;
+  }
+};
+
 export const list = queryGeneric({
   handler: async (ctx, args: any) => {
     let rows = await ctx.db.query("fuel_stations").collect();
@@ -86,7 +95,7 @@ export const create = mutationGeneric({
 
 export const update = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await ctx.db.get(args.id);
+    const row = await getByIdInternal(ctx, args.id);
     if (!row) throw new Error("Fuel station not found");
     const patch = { ...args };
     delete patch.id;
@@ -98,7 +107,7 @@ export const update = mutationGeneric({
 
 export const remove = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await ctx.db.get(args.id);
+    const row = await getByIdInternal(ctx, args.id);
     if (!row) throw new Error("Fuel station not found");
 
     const stocks = await ctx.db.query("fuel_station_stock").collect();

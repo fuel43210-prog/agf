@@ -6,6 +6,15 @@ function eqId(a: any, b: any) {
   return String(a || "") === String(b || "");
 }
 
+const getByIdInternal = async (ctx: any, id: any) => {
+  if (!id || String(id) === "undefined") return null;
+  try {
+    return await ctx.db.get(id as any);
+  } catch {
+    return null;
+  }
+};
+
 export const resolveStation = queryGeneric({
   handler: async (ctx, args: any) => {
     const stations = await ctx.db.query("fuel_stations").collect();
@@ -272,14 +281,7 @@ export const listPendingPayoutLedger = queryGeneric({
 
 export const getStationPayoutContext = queryGeneric({
   handler: async (ctx, args: any) => {
-    let station;
-    try {
-      station = await ctx.db.get(args.fuel_station_id);
-    } catch {
-      console.warn(`[convex/fuel_station_ops.ts] Fallback triggered for getStationPayoutContext: ${args.fuel_station_id}`);
-      const stations = await ctx.db.query("fuel_stations").collect();
-      station = stations.find((s) => eqId(s._id, args.fuel_station_id));
-    }
+    const station = await getByIdInternal(ctx, args.fuel_station_id);
     if (!station) return null;
     const rows = await ctx.db.query("fuel_station_bank_details").collect();
     const bank = rows.find((r) => eqId(r.fuel_station_id, station._id)) || null;
@@ -289,14 +291,7 @@ export const getStationPayoutContext = queryGeneric({
 
 export const ensureStationPendingLedger = mutationGeneric({
   handler: async (ctx, args: any) => {
-    let station;
-    try {
-      station = await ctx.db.get(args.fuel_station_id);
-    } catch {
-      console.warn(`[convex/fuel_station_ops.ts] Fallback triggered for ensureStationPendingLedger: ${args.fuel_station_id}`);
-      const stations = await ctx.db.query("fuel_stations").collect();
-      station = stations.find((s) => eqId(s._id, args.fuel_station_id));
-    }
+    const station = await getByIdInternal(ctx, args.fuel_station_id);
     if (!station) throw new Error("Fuel station not found");
     const now = nowIso();
     const ledger = await ctx.db.query("fuel_station_ledger").collect();
@@ -349,7 +344,7 @@ export const saveStationPayoutRefs = mutationGeneric({
 
 export const settleStationPayoutByLedgerIds = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const station = await ctx.db.get(args.fuel_station_id);
+    const station = await getByIdInternal(ctx, args.fuel_station_id);
     if (!station) throw new Error("Fuel station not found");
     const requested = new Set((args.ledger_ids || []).map((id: any) => String(id)));
     if (requested.size === 0) throw new Error("No ledger ids provided");
@@ -449,14 +444,7 @@ export const listStationPendingEarnings = queryGeneric({
 
 export const settleStationPayoutBatch = mutationGeneric({
   handler: async (ctx, args: any) => {
-    let station;
-    try {
-      station = await ctx.db.get(args.fuel_station_id);
-    } catch {
-      console.warn(`[convex/fuel_station_ops.ts] Fallback triggered for settleStationPayoutBatch: ${args.fuel_station_id}`);
-      const stations = await ctx.db.query("fuel_stations").collect();
-      station = stations.find((s) => eqId(s._id, args.fuel_station_id));
-    }
+    const station = await getByIdInternal(ctx, args.fuel_station_id);
     if (!station) throw new Error("Fuel station not found");
     const now = nowIso();
     const ledgerIds = new Set((args.ledger_ids || []).map((id: any) => String(id)));

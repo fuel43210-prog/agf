@@ -2,6 +2,15 @@ import { mutationGeneric, queryGeneric } from "convex/server";
 
 const nowIso = () => new Date().toISOString();
 
+const getByIdInternal = async (ctx: any, id: any) => {
+  if (!id || String(id) === "undefined") return null;
+  try {
+    return await ctx.db.get(id as any);
+  } catch {
+    return null;
+  }
+};
+
 export const createToken = mutationGeneric({
   handler: async (ctx, args: any) => {
     const id = await ctx.db.insert("password_resets", {
@@ -27,7 +36,7 @@ export const getByToken = queryGeneric({
 
 export const markUsed = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await ctx.db.get(args.id);
+    const row = await getByIdInternal(ctx, args.id);
     if (!row) return { ok: false };
     await ctx.db.patch(row._id, {
       used: true,
@@ -44,13 +53,13 @@ export const updateAccountPassword = mutationGeneric({
     if (!accountId) return { ok: false };
 
     if (accountType === "workers") {
-      const worker = await ctx.db.get(accountId);
+      const worker = await getByIdInternal(ctx, accountId);
       if (!worker) return { ok: false };
       await ctx.db.patch(worker._id, { password: args.password, updated_at: nowIso() });
       return { ok: true };
     }
 
-    const user = await ctx.db.get(accountId);
+    const user = await getByIdInternal(ctx, accountId);
     if (!user) return { ok: false };
     await ctx.db.patch(user._id, { password: args.password, updated_at: nowIso() });
     return { ok: true };
