@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as bootstrap from "../bootstrap.js";
 import type * as cod from "../cod.js";
 import type * as connectivity from "../connectivity.js";
+import type * as db_reset from "../db_reset.js";
 import type * as fuel_station_ops from "../fuel_station_ops.js";
 import type * as fuel_stations from "../fuel_stations.js";
 import type * as logs from "../logs.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   bootstrap: typeof bootstrap;
   cod: typeof cod;
   connectivity: typeof connectivity;
+  db_reset: typeof db_reset;
   fuel_station_ops: typeof fuel_station_ops;
   fuel_stations: typeof fuel_stations;
   logs: typeof logs;

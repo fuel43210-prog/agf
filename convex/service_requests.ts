@@ -49,6 +49,11 @@ const getByIdInternal = async (ctx: any, id: any) => {
   }
 };
 
+const sanitizeIdInternal = (id: any) => {
+  if (!id || String(id) === "undefined") return undefined;
+  return id;
+};
+
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
     return await getByIdInternal(ctx, args.id);
@@ -126,11 +131,11 @@ export const updateStatus = mutationGeneric({
       if (args.status === "Completed") patch.completed_at = now;
       if (args.status === "Cancelled") patch.cancelled_at = now;
     }
-    if (args.assigned_worker !== undefined) patch.assigned_worker = args.assigned_worker;
+    if (args.assigned_worker !== undefined) patch.assigned_worker = sanitizeIdInternal(args.assigned_worker);
     if (args.cod_failure_reason !== undefined) patch.cod_failure_reason = args.cod_failure_reason;
     if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
     if (args.payment_method !== undefined) patch.payment_method = args.payment_method;
-    if (args.fuel_station_id !== undefined) patch.fuel_station_id = args.fuel_station_id;
+    if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(args.fuel_station_id);
     await ctx.db.patch(row._id, patch);
     return { ok: true };
   },

@@ -34,6 +34,11 @@ const getByIdInternal = async (ctx: any, id: any) => {
   }
 };
 
+const sanitizeIdInternal = (id: any) => {
+  if (!id || String(id) === "undefined") return undefined;
+  return id;
+};
+
 export const getCodSettings = queryGeneric({
   handler: async (ctx) => {
     const row = await ctx.db

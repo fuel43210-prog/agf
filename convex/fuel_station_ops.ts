@@ -15,6 +15,11 @@ const getByIdInternal = async (ctx: any, id: any) => {
   }
 };
 
+const sanitizeIdInternal = (id: any) => {
+  if (!id || String(id) === "undefined") return undefined;
+  return id;
+};
+
 export const resolveStation = queryGeneric({
   handler: async (ctx, args: any) => {
     const stations = await ctx.db.query("fuel_stations").collect();
@@ -552,9 +557,9 @@ export const createAssignmentAndCache = mutationGeneric({
   handler: async (ctx, args: any) => {
     const now = nowIso();
     await ctx.db.insert("fuel_station_assignments", {
-      service_request_id: args.service_request_id,
-      worker_id: args.worker_id,
-      fuel_station_id: args.fuel_station_id,
+      service_request_id: sanitizeIdInternal(args.service_request_id),
+      worker_id: sanitizeIdInternal(args.worker_id),
+      fuel_station_id: sanitizeIdInternal(args.fuel_station_id),
       fuel_type: args.fuel_type,
       litres: Number(args.litres || 0),
       distance_km: Number(args.distance_km || 0),
@@ -566,9 +571,9 @@ export const createAssignmentAndCache = mutationGeneric({
       updated_at: now,
     });
     await ctx.db.insert("worker_station_cache", {
-      worker_id: args.worker_id,
-      service_request_id: args.service_request_id,
-      fuel_station_id: args.fuel_station_id,
+      worker_id: sanitizeIdInternal(args.worker_id),
+      service_request_id: sanitizeIdInternal(args.service_request_id),
+      fuel_station_id: sanitizeIdInternal(args.fuel_station_id),
       worker_lat: Number(args.worker_lat),
       worker_lng: Number(args.worker_lng),
       distance_km: Number(args.distance_km || 0),
