@@ -96,11 +96,27 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, status, assigned_worker, cod_failure_reason, payment_status, payment_method, fuel_station_id } =
+    const { id, status, assigned_worker, cod_failure_reason, payment_status, payment_method, fuel_station_id, admin_force } =
       body || {};
 
     if (!id || id === "undefined") {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    if (admin_force === true) {
+      const { requireAdmin } = require("../../database/auth-middleware");
+      const auth = requireAdmin(request);
+      if (!auth) {
+        return NextResponse.json({ error: "Unauthorized: Admin role required for force update" }, { status: 401 });
+      }
+
+      await convexMutation("service_requests:adminUpdateStatus", {
+        id,
+        status,
+        assigned_worker,
+      });
+
+      return NextResponse.json({ success: true, mode: "admin_override" });
     }
 
     let normalizedStatus = undefined;

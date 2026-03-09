@@ -523,9 +523,14 @@ function AdminDashboardContent() {
                     s.activeWorkersList.map((w) => (
                       <li key={w.id} className="admin-worker-item">
                         <span className="admin-worker-dot" />
-                        <span>
-                          {w.first_name} {w.last_name}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span>
+                            {w.first_name} {w.last_name}
+                          </span>
+                          <span style={{ fontSize: '0.8em', color: '#94a3b8' }}>
+                            {w.service_type || "General"} • {(w as any).phone_number || String(w.id).slice(-4)}
+                          </span>
+                        </div>
                         <span className="admin-worker-meta">{w.status}</span>
                       </li>
                     ))

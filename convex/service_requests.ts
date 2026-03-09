@@ -24,6 +24,15 @@ export const create = mutationGeneric({
       user_lon: args.user_lon ?? undefined,
       created_at: nowIso(),
     });
+
+    await ctx.db.insert("activity_log", {
+      type: "service_request_created",
+      message: `New ${args.service_type} request #${id} for ${args.vehicle_number}`,
+      entity_type: "service_requests",
+      entity_id: String(id),
+      created_at: nowIso(),
+    });
+
     return { id };
   },
 });
@@ -172,6 +181,10 @@ export const updateStatus = mutationGeneric({
       if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
       if (args.payment_method !== undefined) patch.payment_method = args.payment_method;
       if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id);
+      if (args.status === "Cancelled" && args.cod_failure_reason !== undefined) {
+        patch.payment_status = "FAILED_COD";
+      }
+
       await ctx.db.patch(row._id, patch);
 
       // --- NEW: Update User COD Stats & Trust Score ---
@@ -188,6 +201,15 @@ export const updateStatus = mutationGeneric({
             userPatch.cod_failure_count = (user.cod_failure_count || 0) + 1;
             userPatch.cod_last_failure_reason = args.cod_failure_reason;
             userPatch.trust_score = Math.max(0, (user.trust_score || 50) - 20);
+
+
+            await ctx.db.insert("activity_log", {
+              type: "cod_failure",
+              message: `COD Failure for User ${user.first_name}: ${args.cod_failure_reason}`,
+              entity_type: "users",
+              entity_id: String(user._id),
+              created_at: nowIso(),
+            });
           }
 
           if (Object.keys(userPatch).length > 1) {
@@ -196,6 +218,17 @@ export const updateStatus = mutationGeneric({
         }
       }
       // ------------------------------------------------
+
+      // Log Status Change
+      if (args.status) {
+        await ctx.db.insert("activity_log", {
+          type: "service_request_status_change",
+          message: `Request #${row._id} status changed to ${args.status}`,
+          entity_type: "service_requests",
+          entity_id: String(row._id),
+          created_at: nowIso(),
+        });
+      }
 
       // Settlement and Financial update logic on Completion
       if (args.status === "Completed") {
@@ -264,26 +297,26 @@ export const updateStatus = mutationGeneric({
                 created_at: now,
                 updated_at: now,
               });
-
-              // --- Deduct Stock ---
-              const fuelType = String(row.service_type || "").toLowerCase();
-              if (fuelType === "petrol" || fuelType === "diesel") {
-                const stockRecord = await ctx.db
-                  .query("fuel_station_stock")
-                  .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", station._id))
-                  .filter((q) => q.eq(q.field("fuel_type"), fuelType))
-                  .first();
-
-                if (stockRecord) {
-                  const currentStock = Number(stockRecord.stock_litres || 0);
-                  await ctx.db.patch(stockRecord._id, {
-                    stock_litres: Math.max(0, currentStock - Number(row.litres || 0)),
-                    updated_at: now,
-                  });
-                }
-              }
-              // --------------------
             }
+
+            // --- Deduct Stock (Always, regardless of stationEarnings calculation) ---
+            const fuelType = String(row.service_type || "").toLowerCase();
+            if (fuelType === "petrol" || fuelType === "diesel") {
+              const stockRecord = await ctx.db
+                .query("fuel_station_stock")
+                .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", station._id))
+                .filter((q) => q.eq(q.field("fuel_type"), fuelType))
+                .first();
+
+              if (stockRecord) {
+                const currentStock = Number(stockRecord.stock_litres || 0);
+                await ctx.db.patch(stockRecord._id, {
+                  stock_litres: Math.max(0, currentStock - Number(row.litres || 0)),
+                  updated_at: now,
+                });
+              }
+            }
+            // --------------------
           }
         }
 
@@ -310,6 +343,46 @@ export const updateStatus = mutationGeneric({
     } catch (err: any) {
       console.error("updateStatus error:", err);
       throw new ConvexError(`Status update failed: ${err.message}`);
+    }
+  },
+});
+
+export const adminUpdateStatus = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    try {
+      const row = await getByIdInternal(ctx, args.id);
+      if (!row) throw new Error("Service request not found");
+
+      const patch: Record<string, any> = {
+        updated_at: nowIso(),
+      };
+      if (args.status) {
+        patch.status = args.status;
+        const now = nowIso();
+        if (args.status === "Completed") patch.completed_at = now;
+        if (args.status === "Cancelled") patch.cancelled_at = now;
+      }
+
+      if (args.assigned_worker !== undefined) {
+        patch.assigned_worker = args.assigned_worker === null
+          ? null
+          : sanitizeIdInternal(ctx, "workers", args.assigned_worker);
+      }
+
+      await ctx.db.patch(row._id, patch);
+
+      await ctx.db.insert("activity_log", {
+        type: "admin_manual_override",
+        message: `Admin force updated request #${row._id} to ${args.status || "new state"}`,
+        entity_type: "service_requests",
+        entity_id: String(row._id),
+        created_at: nowIso(),
+      });
+
+      return { ok: true };
+    } catch (err: any) {
+      console.error("adminUpdateStatus error:", err);
+      throw new ConvexError(`Admin override failed: ${err.message}`);
     }
   },
 });

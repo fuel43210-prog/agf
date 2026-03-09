@@ -71,6 +71,7 @@ export async function GET(request) {
         id: w._id,
         first_name: w.first_name,
         last_name: w.last_name,
+        phone_number: w.phone_number,
         status: w.status || "Offline",
         latitude: w.latitude,
         longitude: w.longitude,

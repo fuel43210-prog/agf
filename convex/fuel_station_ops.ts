@@ -133,6 +133,15 @@ export const upsertStock = mutationGeneric({
       });
     }
 
+    const station = await ctx.db.get(normalized);
+    await ctx.db.insert("activity_log", {
+      type: "fuel_stock_update",
+      message: `${station?.station_name || "Station"} ${fuelType} stock updated to ${stockLitres}L`,
+      entity_type: "fuel_stations",
+      entity_id: String(normalized),
+      created_at: now,
+    });
+
     return { ok: true, updated_at: now };
   },
 });

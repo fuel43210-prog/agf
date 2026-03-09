@@ -1080,7 +1080,11 @@ export default function UserDashboardPage() {
                       <span className="user-worker-dot" />
                       <div>
                         <span className="user-worker-name">
-                          {w.first_name} {w.last_name} · <span className="user-worker-role">{w.service_type || "General"}</span>
+                          {w.first_name} {w.last_name}
+                        </span>
+                        <br />
+                        <span className="user-worker-role" style={{ fontSize: '0.85em', color: '#94a3b8' }}>
+                          {w.service_type || "General"} • {w.phone_number || String(w.id).slice(-4)}
                         </span>
                       </div>
                     </li>
