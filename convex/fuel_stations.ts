@@ -4,8 +4,10 @@ const nowIso = () => new Date().toISOString();
 
 const getByIdInternal = async (ctx: any, id: any) => {
   if (!id || String(id) === "undefined") return null;
+  const normalizedId = ctx.db.normalizeId("fuel_stations", id);
+  if (!normalizedId) return null;
   try {
-    return await ctx.db.get(id as any);
+    return await ctx.db.get(normalizedId);
   } catch {
     return null;
   }

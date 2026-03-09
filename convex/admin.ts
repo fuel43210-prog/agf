@@ -25,18 +25,20 @@ const defaultServicePrices = [
   { service_type: "mechanic_car", amount: 1200 },
 ];
 
-const getByIdInternal = async (ctx: any, id: any) => {
+const getByIdInternal = async (ctx: any, id: any, table: string = "users") => {
   if (!id || String(id) === "undefined") return null;
+  const normalizedId = ctx.db.normalizeId(table, id);
+  if (!normalizedId) return null;
   try {
-    return await ctx.db.get(id as any);
+    return await ctx.db.get(normalizedId);
   } catch {
     return null;
   }
 };
 
-const sanitizeIdInternal = (id: any) => {
+const sanitizeIdInternal = (ctx: any, id: any, table: string = "users") => {
   if (!id || String(id) === "undefined") return undefined;
-  return id;
+  return ctx.db.normalizeId(table, id) || undefined;
 };
 
 export const getCodSettings = queryGeneric({
@@ -174,13 +176,14 @@ export const listCodUsers = queryGeneric({
         const f = Number(b.cod_failure_count || 0) - Number(a.cod_failure_count || 0);
         if (f !== 0) return f;
         return Number(a.trust_score || 0) - Number(b.trust_score || 0);
-      });
+      })
+      .map((u) => ({ ...u, id: u._id }));
   },
 });
 
 export const updateCodUser = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await getByIdInternal(ctx, args.user_id);
+    const user = await getByIdInternal(ctx, args.user_id, "users");
     if (!user || (user.role || "User") !== "User") {
       throw new Error("User not found or not eligible for COD controls");
     }
@@ -225,13 +228,16 @@ export const listUsers = queryGeneric({
     return users
       .filter((u) => ["User", "Admin"].includes(String(u.role || "User")))
       .filter((u) => !stationUserIds.has(String(u._id)))
-      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+      .map((u) => ({ ...u, id: u._id }));
   },
 });
 
 export const getUserById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await getByIdInternal(ctx, args.id);
+    const user = await getByIdInternal(ctx, args.id, "users");
+    if (!user) return null;
+    return { ...user, id: user._id };
   },
 });
 
@@ -244,7 +250,7 @@ export const countAdmins = queryGeneric({
 
 export const updateUser = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await getByIdInternal(ctx, args.id);
+    const user = await getByIdInternal(ctx, args.id, "users");
     if (!user) throw new Error("User not found");
     const users = await ctx.db.query("users").collect();
     const existingEmail = users.find(
@@ -266,7 +272,7 @@ export const updateUser = mutationGeneric({
 
 export const deleteUser = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await getByIdInternal(ctx, args.id);
+    const user = await getByIdInternal(ctx, args.id, "users");
     if (!user) throw new Error("User not found");
 
     const requests = await ctx.db.query("service_requests").collect();
@@ -316,13 +322,15 @@ export const listWorkers = queryGeneric({
 
 export const getWorkerById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await getByIdInternal(ctx, args.id);
+    const worker = await getByIdInternal(ctx, args.id, "workers");
+    if (!worker) return null;
+    return { ...worker, id: worker._id };
   },
 });
 
 export const updateWorker = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await getByIdInternal(ctx, args.id);
+    const worker = await getByIdInternal(ctx, args.id, "workers");
     if (!worker) throw new Error("Worker not found");
     const workers = await ctx.db.query("workers").collect();
     const existingEmail = workers.find(
@@ -355,7 +363,7 @@ export const updateWorker = mutationGeneric({
 
 export const deleteWorker = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await getByIdInternal(ctx, args.id);
+    const worker = await getByIdInternal(ctx, args.id, "workers");
     if (!worker) throw new Error("Worker not found");
     await ctx.db.delete(worker._id);
     return { ok: true };
@@ -383,7 +391,7 @@ export const getWorkerReviews = queryGeneric({
 
 export const collectWorkerCash = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await getByIdInternal(ctx, args.worker_id);
+    const worker = await getByIdInternal(ctx, args.worker_id, "workers");
     if (!worker) throw new Error("Worker not found");
     const floaterCashAmount = Number(worker.floater_cash || 0);
     const now = nowIso();
@@ -422,7 +430,9 @@ export const collectWorkerCash = mutationGeneric({
 export const getWorkerBankDetails = queryGeneric({
   handler: async (ctx, args: any) => {
     const rows = await ctx.db.query("worker_bank_details").collect();
-    return rows.find((r) => String(r.worker_id) === String(args.worker_id)) || null;
+    const row = rows.find((r) => String(r.worker_id) === String(args.worker_id));
+    if (!row) return null;
+    return { ...row, id: row._id };
   },
 });
 
@@ -546,7 +556,8 @@ export const listWorkerPayouts = queryGeneric({
     const rows = await ctx.db.query("worker_payouts").collect();
     return rows
       .filter((r) => String(r.worker_id || "") === String(args.worker_id))
-      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+      .map((r) => ({ ...r, id: r._id }));
   },
 });
 
@@ -705,9 +716,9 @@ export const getFloatingPaymentByOrder = queryGeneric({
 
 export const applyFloatingPaymentSuccess = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const payment = await getByIdInternal(ctx, args.payment_id);
+    const payment = await getByIdInternal(ctx, args.payment_id, "floating_cash_payments");
     if (!payment) throw new Error("Payment order not found.");
-    const worker = await getByIdInternal(ctx, args.worker_id);
+    const worker = await getByIdInternal(ctx, args.worker_id, "workers");
     if (!worker) throw new Error("Worker not found");
     if (String(payment.worker_id || "") !== String(worker._id)) throw new Error("Forbidden");
     if (String(payment.status || "") === "paid") return { already_processed: true, amount: Number(payment.amount || 0) };
@@ -815,7 +826,7 @@ export const updateFuelStationAdmin = mutationGeneric({
 
 export const setUserPassword = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const user = await getByIdInternal(ctx, args.user_id);
+    const user = await getByIdInternal(ctx, args.user_id, "users");
     if (!user) return { ok: false };
     await ctx.db.patch(user._id, { password: args.password, ...(args.email ? { email: args.email } : {}) });
     return { ok: true };
@@ -904,7 +915,7 @@ export const listPayments = queryGeneric({
 
 export const reconcilePayment = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const payment = await getByIdInternal(ctx, args.payment_id);
+    const payment = await getByIdInternal(ctx, args.payment_id, "payments");
     if (!payment) throw new Error("Payment not found");
     await ctx.db.patch(payment._id, { status: args.status, updated_at: nowIso() });
     return { ok: true };
@@ -1041,10 +1052,12 @@ export const listSettlements = queryGeneric({
       return {
         ...s,
         id: s._id,
+        worker_name: worker ? `${worker.first_name} ${worker.last_name}` : "Unknown",
         worker_first_name: worker?.first_name,
         worker_last_name: worker?.last_name,
         worker_email: worker?.email,
-        fuel_station_name: station?.station_name || station?.name,
+        station_name: station ? station.station_name : "Direct",
+        fuel_station_name: station?.station_name || (station as any)?.name,
         request_status: req?.status,
         customer_id: req?.user_id,
       };
@@ -1055,7 +1068,7 @@ export const listSettlements = queryGeneric({
 
 export const reconcileSettlement = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const row = await getByIdInternal(ctx, args.settlement_id);
+    const row = await getByIdInternal(ctx, args.settlement_id, "settlements");
     if (!row) throw new Error("Settlement not found");
     await ctx.db.patch(row._id, {
       status: "reconciled",

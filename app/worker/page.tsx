@@ -205,7 +205,7 @@ export default function WorkerDashboardPage() {
     if (!worker?.id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/service-requests`);
+      const res = await fetch(`/api/service-requests`, { cache: 'no-store' });
       let allRequests: ServiceRequest[] = res.ok ? await res.json() : [];
       if (Array.isArray(allRequests)) {
         // Ensure IDs are strings

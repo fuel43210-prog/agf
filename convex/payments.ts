@@ -40,16 +40,19 @@ export const updateByProviderPaymentId = mutationGeneric({
 export const list = queryGeneric({
   handler: async (ctx, args: any) => {
     const rows = await ctx.db.query("payments").collect();
-    return args.status ? rows.filter((r) => r.status === args.status) : rows;
+    const filtered = args.status ? rows.filter((r) => r.status === args.status) : rows;
+    return filtered.map((r) => ({ ...r, id: r._id }));
   },
 });
 
 export const getSettlementByServiceRequest = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await ctx.db
+    const row = await ctx.db
       .query("settlements")
       .withIndex("by_service_request_id", (q) => q.eq("service_request_id", args.service_request_id))
       .first();
+    if (!row) return null;
+    return { ...row, id: row._id };
   },
 });
 

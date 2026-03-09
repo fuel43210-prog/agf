@@ -8,16 +8,18 @@ function eqId(a: any, b: any) {
 
 const getByIdInternal = async (ctx: any, id: any) => {
   if (!id || String(id) === "undefined") return null;
+  const normalizedId = ctx.db.normalizeId("fuel_stations", id);
+  if (!normalizedId) return null;
   try {
-    return await ctx.db.get(id as any);
+    return await ctx.db.get(normalizedId);
   } catch {
     return null;
   }
 };
 
-const sanitizeIdInternal = (id: any) => {
+const sanitizeIdInternal = (ctx: any, id: any, table: string = "fuel_stations") => {
   if (!id || String(id) === "undefined") return undefined;
-  return id;
+  return ctx.db.normalizeId(table, id) || undefined;
 };
 
 export const resolveStation = queryGeneric({
@@ -61,7 +63,8 @@ export const getStocks = queryGeneric({
     const rows = await ctx.db.query("fuel_station_stock").collect();
     return rows
       .filter((r) => eqId(r.fuel_station_id, stationId))
-      .sort((a, b) => String(a.fuel_type || "").localeCompare(String(b.fuel_type || "")));
+      .sort((a, b) => String(a.fuel_type || "").localeCompare(String(b.fuel_type || "")))
+      .map((r) => ({ ...r, id: r._id }));
   },
 });
 
@@ -146,7 +149,7 @@ export const listLedger = queryGeneric({
     const filtered = rows
       .filter((r) => eqId(r.fuel_station_id, stationId))
       .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-    return filtered.slice(offset, offset + limit);
+    return filtered.slice(offset, offset + limit).map((r) => ({ ...r, id: r._id }));
   },
 });
 
@@ -158,7 +161,8 @@ export const listCodSettlements = queryGeneric({
     return rows
       .filter((r) => eqId(r.fuel_station_id, stationId))
       .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
-      .slice(0, limit);
+      .slice(0, limit)
+      .map((r) => ({ ...r, id: r._id }));
   },
 });
 
@@ -557,9 +561,9 @@ export const createAssignmentAndCache = mutationGeneric({
   handler: async (ctx, args: any) => {
     const now = nowIso();
     await ctx.db.insert("fuel_station_assignments", {
-      service_request_id: sanitizeIdInternal(args.service_request_id),
-      worker_id: sanitizeIdInternal(args.worker_id),
-      fuel_station_id: sanitizeIdInternal(args.fuel_station_id),
+      service_request_id: sanitizeIdInternal(ctx, args.service_request_id, "service_requests"),
+      worker_id: sanitizeIdInternal(ctx, args.worker_id, "workers"),
+      fuel_station_id: sanitizeIdInternal(ctx, args.fuel_station_id, "fuel_stations"),
       fuel_type: args.fuel_type,
       litres: Number(args.litres || 0),
       distance_km: Number(args.distance_km || 0),
@@ -571,9 +575,9 @@ export const createAssignmentAndCache = mutationGeneric({
       updated_at: now,
     });
     await ctx.db.insert("worker_station_cache", {
-      worker_id: sanitizeIdInternal(args.worker_id),
-      service_request_id: sanitizeIdInternal(args.service_request_id),
-      fuel_station_id: sanitizeIdInternal(args.fuel_station_id),
+      worker_id: sanitizeIdInternal(ctx, args.worker_id, "workers"),
+      service_request_id: sanitizeIdInternal(ctx, args.service_request_id, "service_requests"),
+      fuel_station_id: sanitizeIdInternal(ctx, args.fuel_station_id, "fuel_stations"),
       worker_lat: Number(args.worker_lat),
       worker_lng: Number(args.worker_lng),
       distance_km: Number(args.distance_km || 0),

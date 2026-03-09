@@ -35,17 +35,21 @@ export const createWorker = mutationGeneric({
 
 export const getByEmail = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await ctx.db
+    const worker = await ctx.db
       .query("workers")
       .withIndex("by_email", (q) => q.eq("email", String(args.email).toLowerCase()))
       .first();
+    if (!worker) return null;
+    return { ...worker, id: worker._id };
   },
 });
 
 const getByIdInternal = async (ctx: any, id: any) => {
   if (!id || String(id) === "undefined") return null;
+  const normalizedId = ctx.db.normalizeId("workers", id);
+  if (!normalizedId) return null;
   try {
-    return await ctx.db.get(id as any);
+    return await ctx.db.get(normalizedId);
   } catch {
     return null;
   }
@@ -53,7 +57,9 @@ const getByIdInternal = async (ctx: any, id: any) => {
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await getByIdInternal(ctx, args.id);
+    const worker = await getByIdInternal(ctx, args.id);
+    if (!worker) return null;
+    return { ...worker, id: worker._id };
   },
 });
 
@@ -79,7 +85,8 @@ export const listAvailableVerified = queryGeneric({
         `${a.first_name || ""} ${a.last_name || ""}`.localeCompare(
           `${b.first_name || ""} ${b.last_name || ""}`
         )
-      );
+      )
+      .map((w) => ({ ...w, id: w._id }));
   },
 });
 

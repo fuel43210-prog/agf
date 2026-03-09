@@ -128,6 +128,7 @@ export default function UserDashboardPage() {
     cities: { name: string; petrol: number; diesel: number }[];
   } | null>(null);
   const [isCurrentlyRaining, setIsCurrentlyRaining] = useState(false);
+  const prevRequestsRef = useRef<ServiceRequest[]>([]);
 
   const ONLINE_PAYMENT_STORAGE_KEY = "agf_online_payment_status";
 
@@ -195,10 +196,10 @@ export default function UserDashboardPage() {
   }, []);
 
   const fetchServiceRequests = useCallback(async () => {
-    setServiceRequestsLoading(true);
+    if (serviceRequests.length === 0) setServiceRequestsLoading(true);
     try {
       const url = user?.id != null ? `/api/service-requests?user_id=${user.id}` : "/api/service-requests";
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'no-store' });
       let data = res.ok ? await res.json() : [];
       if (Array.isArray(data)) {
         // Ensure IDs are strings
@@ -215,7 +216,27 @@ export default function UserDashboardPage() {
     } finally {
       setServiceRequestsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, serviceRequests.length]);
+
+  useEffect(() => {
+    // Detect status changes and notify user
+    serviceRequests.forEach(req => {
+      const prev = prevRequestsRef.current.find(p => p.id === req.id);
+      if (prev && prev.status !== req.status) {
+        if (req.status === "Assigned") {
+          showToast(`Worker Assigned! Your request for ${req.service_type} is accepted.`, "success");
+          setSummaryTab("Active Requests");
+        } else if (req.status === "In Progress") {
+          showToast("Worker is on the way! Your service is now In Progress.", "info");
+        } else if (req.status === "Completed") {
+          showToast("Service Completed! Thank you for using AGF.", "success");
+        } else if (req.status === "Cancelled") {
+          showToast("Service Request has been cancelled.", "warning");
+        }
+      }
+    });
+    prevRequestsRef.current = serviceRequests;
+  }, [serviceRequests, showToast]);
 
   const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
@@ -712,7 +733,7 @@ export default function UserDashboardPage() {
       const interval = setInterval(() => {
         fetchServiceRequests();
         fetchWorkers();
-      }, 60000);
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [authChecked, fetchServiceRequests, fetchWorkers]);
