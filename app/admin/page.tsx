@@ -151,7 +151,7 @@ function AdminDashboardContent() {
   const [payoutsData, setPayoutsData] = useState<any[]>([]);
 
   const loadPlatformSettings = useCallback(() => {
-    fetch("/api/admin/platform-settings")
+    fetch("/api/admin/platform-settings", { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => setPlatformSettings(data))
       .catch(() => setPlatformSettings(null));
@@ -601,7 +601,7 @@ function AdminDashboardContent() {
               </div>
             </div>
             <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>Night Surge</h3>
@@ -624,6 +624,7 @@ function AdminDashboardContent() {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ ...platformSettings, is_raining: isNowRaining }),
+                        cache: 'no-store'
                       });
                       loadPlatformSettings();
                     }}
@@ -640,6 +641,38 @@ function AdminDashboardContent() {
                     }}
                   >
                     {platformSettings?.is_raining ? '🌧️ Raining' : '☀️ Clear'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>Emergency Mode</h3>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>Global 2.0x surge override</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const isNowEmergency = platformSettings?.is_emergency ? 0 : 1;
+                      await fetch("/api/admin/platform-settings", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ...platformSettings, is_emergency: isNowEmergency }),
+                        cache: 'no-store'
+                      });
+                      loadPlatformSettings();
+                    }}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      backgroundColor: platformSettings?.is_emergency ? '#ef4444' : 'rgba(255,255,255,0.1)',
+                      color: '#fff',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {platformSettings?.is_emergency ? '🚨 ON' : '🚑 OFF'}
                   </button>
                 </div>
               </div>
@@ -1375,7 +1408,10 @@ function SettlementCalculator() {
   const [litres, setLitres] = useState(5);
   const [fuelType, setFuelType] = useState<'petrol' | 'diesel'>('petrol');
   const [distanceKm, setDistanceKm] = useState(5);
-  const [isNight, setIsNight] = useState(false);
+  const [isNight, setIsNight] = useState(() => {
+    const hour = new Date().getHours();
+    return hour >= 21 || hour < 6;
+  });
   const [isRain, setIsRain] = useState(false);
   const [isEmergency, setIsEmergency] = useState(false);
   const [fuelPrices, setFuelPrices] = useState<Record<string, number>>({
@@ -1389,6 +1425,8 @@ function SettlementCalculator() {
       .then((data) => {
         if (data && data.petrol && data.diesel) {
           setFuelPrices({ petrol: data.petrol, diesel: data.diesel });
+          if (data.is_raining !== undefined) setIsRain(!!data.is_raining);
+          if (data.is_emergency !== undefined) setIsEmergency(!!data.is_emergency);
         }
       })
       .catch(() => { });

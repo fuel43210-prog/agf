@@ -13,6 +13,7 @@ const defaultPlatformSettings = {
   delivery_fee_base: 50,
   platform_service_fee_percentage: 5,
   is_raining: 0,
+  is_emergency: 0,
   surge_night_multiplier: 1.5,
   surge_rain_multiplier: 1.3,
 };
@@ -128,7 +129,12 @@ export const getPlatformSettings = queryGeneric({
       .first();
     if (!row) return defaultPlatformSettings;
     try {
-      return { ...defaultPlatformSettings, ...JSON.parse(row.value_json || "{}") };
+      const parsed = JSON.parse(row.value_json || "{}");
+      return {
+        ...defaultPlatformSettings,
+        ...parsed,
+        is_emergency: parsed.is_emergency !== undefined ? Number(parsed.is_emergency) : defaultPlatformSettings.is_emergency,
+      };
     } catch {
       return defaultPlatformSettings;
     }
@@ -143,10 +149,11 @@ export const upsertPlatformSettings = mutationGeneric({
       .first();
     const next = {
       is_raining: args.is_raining ? 1 : 0,
-      delivery_fee_base: Number(args.delivery_fee_base),
-      platform_service_fee_percentage: Number(args.platform_service_fee_percentage),
-      surge_night_multiplier: Number(args.surge_night_multiplier),
-      surge_rain_multiplier: Number(args.surge_rain_multiplier),
+      is_emergency: args.is_emergency ? 1 : 0,
+      delivery_fee_base: Number(args.delivery_fee_base || defaultPlatformSettings.delivery_fee_base),
+      platform_service_fee_percentage: Number(args.platform_service_fee_percentage || defaultPlatformSettings.platform_service_fee_percentage),
+      surge_night_multiplier: Number(args.surge_night_multiplier || defaultPlatformSettings.surge_night_multiplier),
+      surge_rain_multiplier: Number(args.surge_rain_multiplier || defaultPlatformSettings.surge_rain_multiplier),
     };
     if (row) {
       await ctx.db.patch(row._id, {

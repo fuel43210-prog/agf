@@ -128,6 +128,7 @@ export default function UserDashboardPage() {
     cities: { name: string; petrol: number; diesel: number }[];
   } | null>(null);
   const [isCurrentlyRaining, setIsCurrentlyRaining] = useState(false);
+  const [isEmergencyMode, setIsEmergencyMode] = useState(false);
   const prevRequestsRef = useRef<ServiceRequest[]>([]);
 
   const ONLINE_PAYMENT_STORAGE_KEY = "agf_online_payment_status";
@@ -163,12 +164,15 @@ export default function UserDashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/fuel-prices")
+    fetch("/api/fuel-prices", { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && data.petrol && data.diesel) {
           if (data.is_raining !== undefined) {
             setIsCurrentlyRaining(!!data.is_raining);
+          }
+          if (data.is_emergency !== undefined) {
+            setIsEmergencyMode(!!data.is_emergency);
           }
           setFuelPrices({ petrol: data.petrol, diesel: data.diesel });
           setFuelMetadata({
@@ -543,6 +547,10 @@ export default function UserDashboardPage() {
         surgeFee += Math.round(deliveryFee * 0.3);
         surgeReasons.push('Rainy weather');
       }
+      if (isEmergencyMode) {
+        surgeFee += Math.round(deliveryFee * 1.0);
+        surgeReasons.push('Emergency mode');
+      }
 
       // 5. Worker Estimate (We MUST cover this)
       const estimatedWorkerPayout = Math.max(100, 50 + 10 * 2 + Math.round(surgeFee * 0.5)); // 2km avg distance estimate
@@ -586,6 +594,10 @@ export default function UserDashboardPage() {
         surgeFee += Math.round(baseFee * 0.3);
         surgeReasons.push('Rainy weather');
       }
+      if (isEmergencyMode) {
+        surgeFee += Math.round(baseFee * 1.0);
+        surgeReasons.push('Emergency mode');
+      }
 
       const total = baseFee + surgeFee;
 
@@ -600,7 +612,7 @@ export default function UserDashboardPage() {
         fuel_station_payout: 0,
       });
     }
-  }, [requestModalOpen, requestForm.service_type, fuelLitres, fuelPrices, serviceSettings, isCurrentlyRaining]);
+  }, [requestModalOpen, requestForm.service_type, fuelLitres, fuelPrices, serviceSettings, isCurrentlyRaining, isEmergencyMode]);
 
   async function submitRequest(e?: React.FormEvent, paymentIdOverride?: string, amountOverride?: number) {
     if (e) e.preventDefault();

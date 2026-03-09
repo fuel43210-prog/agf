@@ -1,0 +1,8 @@
+{
+  "delivery_fee_base": 50,
+  "is_emergency": 0,
+  "is_raining": 0,
+  "platform_service_fee_percentage": 5,
+  "surge_night_multiplier": 1.5,
+  "surge_rain_multiplier": 1.3
+}

@@ -11,9 +11,9 @@ const { convexQuery } = require("../../lib/convexServer");
 
 export async function GET() {
     try {
-        const settings = (await convexQuery("admin:getPlatformSettings", {})) || { is_raining: 0 };
-
+        const settings = (await convexQuery("admin:getPlatformSettings", {})) || {};
         const isRaining = !!(settings as any).is_raining;
+        const isEmergency = !!(settings as any).is_emergency;
 
         let prices = { ...FALLBACK_PRICES };
         let source = "Verified Market Rates (Fallback)";
@@ -50,6 +50,7 @@ export async function GET() {
         const data = {
             ...prices,
             is_raining: isRaining,
+            is_emergency: isEmergency,
             current_time: new Date().toISOString(),
             status: "Success",
             message: source === "Live External API" ? "Real-time rates fetched" : "Fuel prices are updated daily at 6:00 AM IST",

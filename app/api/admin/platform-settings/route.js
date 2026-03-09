@@ -16,6 +16,7 @@ export async function PUT(request) {
         const body = await request.json();
         await convexMutation("admin:upsertPlatformSettings", {
             is_raining: body.is_raining,
+            is_emergency: body.is_emergency,
             delivery_fee_base: body.delivery_fee_base,
             platform_service_fee_percentage: body.platform_service_fee_percentage,
             surge_night_multiplier: body.surge_night_multiplier,
