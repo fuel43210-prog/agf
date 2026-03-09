@@ -46,7 +46,8 @@ async function convexQuery(functionName, args = {}) {
   try {
     return await client.query(functionName, args);
   } catch (err) {
-    console.error(`[ConvexServer] query (${functionName}) error:`, err.message || err);
+    const diagnostic = err.data ? `${err.message} (Data: ${JSON.stringify(err.data)})` : (err.message || err);
+    console.error(`[ConvexServer] query (${functionName}) error:`, diagnostic);
     if (!err.message) {
       console.error("[ConvexServer] Hint: An empty error usually means the Convex URL is invalid, gave a 404, or the network is blocking the request.");
     }
@@ -59,7 +60,8 @@ async function convexMutation(functionName, args = {}) {
   try {
     return await client.mutation(functionName, args);
   } catch (err) {
-    console.error(`[ConvexServer] mutation (${functionName}) error:`, err.message || err);
+    const diagnostic = err.data ? `${err.message} (Data: ${JSON.stringify(err.data)})` : (err.message || err);
+    console.error(`[ConvexServer] mutation (${functionName}) error:`, diagnostic);
     if (!err.message) {
       console.error("[ConvexServer] Hint: An empty error usually means the Convex URL is invalid, gave a 404, or the network is blocking the request.");
     }

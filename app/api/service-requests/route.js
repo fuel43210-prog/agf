@@ -55,13 +55,14 @@ export async function POST(request) {
       status: "Pending",
     });
 
-    return NextResponse.json({ success: true, id: result.id }, { status: 201 });
+    return NextResponse.json({ success: true, id: result.id, amount: parsedAmount }, { status: 201 });
   } catch (err) {
     console.error("Service request create error details:", err);
     return NextResponse.json({
-      error: err?.message || "Internal server error",
+      error: err?.data || err?.message || "Internal server error",
       details: String(err),
-      stack: err?.stack
+      stack: err?.stack,
+      data: err?.data
     }, { status: 500 });
   }
 }
@@ -135,9 +136,10 @@ export async function PATCH(request) {
   } catch (err) {
     console.error("Service request update error details:", err);
     return NextResponse.json({
-      error: err?.message || "Internal server error",
+      error: err?.data || err?.message || "Internal server error",
       details: String(err),
-      stack: err?.stack
+      stack: err?.stack,
+      data: err?.data
     }, { status: 500 });
   }
 }

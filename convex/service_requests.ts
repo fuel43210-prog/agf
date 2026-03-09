@@ -1,4 +1,5 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
+import { ConvexError } from "convex/values";
 
 const nowIso = () => new Date().toISOString();
 
@@ -49,9 +50,13 @@ const getByIdInternal = async (ctx: any, id: any) => {
   }
 };
 
-const sanitizeIdInternal = (id: any) => {
+const sanitizeIdInternal = (ctx: any, tableName: string, id: any) => {
   if (!id || String(id) === "undefined") return undefined;
-  return id;
+  const normalized = ctx.db.normalizeId(tableName, id);
+  if (!normalized) {
+    throw new ConvexError(`Invalid ID format for table '${tableName}': ${id}`);
+  }
+  return normalized;
 };
 
 export const getById = queryGeneric({
@@ -142,16 +147,16 @@ export const updateStatus = mutationGeneric({
         if (args.status === "Completed") patch.completed_at = now;
         if (args.status === "Cancelled") patch.cancelled_at = now;
       }
-      if (args.assigned_worker !== undefined) patch.assigned_worker = sanitizeIdInternal(args.assigned_worker);
+      if (args.assigned_worker !== undefined) patch.assigned_worker = sanitizeIdInternal(ctx, "workers", args.assigned_worker);
       if (args.cod_failure_reason !== undefined) patch.cod_failure_reason = args.cod_failure_reason;
       if (args.payment_status !== undefined) patch.payment_status = args.payment_status;
       if (args.payment_method !== undefined) patch.payment_method = args.payment_method;
-      if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(args.fuel_station_id);
+      if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id);
       await ctx.db.patch(row._id, patch);
       return { ok: true };
     } catch (err: any) {
       console.error("updateStatus error:", err);
-      throw new Error(`Status update failed: ${err.message}`);
+      throw new ConvexError(`Status update failed: ${err.message}`);
     }
   },
 });

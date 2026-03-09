@@ -49,9 +49,10 @@ export async function PATCH(request, context) {
   } catch (err) {
     console.error("Service request update error details:", err);
     return NextResponse.json({
-      error: err?.message || "Internal server error",
+      error: err?.data || err?.message || "Internal server error",
       details: String(err),
-      stack: err?.stack
+      stack: err?.stack,
+      data: err?.data
     }, { status: 500 });
   }
 }
