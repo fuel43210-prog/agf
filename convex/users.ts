@@ -43,6 +43,44 @@ export const signup = mutationGeneric({
   },
 });
 
+export const seedAdmin = mutationGeneric({
+  handler: async (ctx, args: any) => {
+    const { email, password, first_name, last_name, phone_number } = args;
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", String(email).toLowerCase()))
+      .first();
+
+    if (existing) {
+      return { success: false, message: "Admin already exists", id: existing._id };
+    }
+
+    const allUsers = await ctx.db.query("users").collect();
+    const maxSerial = allUsers.reduce((max, u) => {
+      const n = Number((u as any).serial_id || 0);
+      return isNaN(n) ? max : (n > max ? n : max);
+    }, 0);
+
+    const id = await ctx.db.insert("users", {
+      serial_id: maxSerial + 1,
+      email: String(email).toLowerCase(),
+      password, // Should be hashed already by the caller
+      first_name: first_name || "System",
+      last_name: last_name || "Admin",
+      phone_number: phone_number || "0000000000",
+      role: "Admin",
+      trust_score: 100,
+      cod_success_count: 0,
+      cod_failure_count: 0,
+      cod_disabled: false,
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    });
+
+    return { success: true, id };
+  },
+});
+
 export const assignMissingSerialIds = mutationGeneric({
   handler: async (ctx) => {
     const users = await ctx.db.query("users").collect();
