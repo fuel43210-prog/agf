@@ -28,6 +28,7 @@ type ServiceRequest = {
   user_lon: number | null;
   payment_method?: string;
   litres?: number;
+  fuel_station_id?: string | null;
   fuel_station_name?: string | null;
   fuel_station_lat?: number | null;
   fuel_station_lon?: number | null;
@@ -523,6 +524,36 @@ export default function WorkerDashboardPage() {
           )
         );
         await updateWorkerStatus(worker.id, "Busy");
+
+        // Auto-assign fuel station if it's a fuel task and not already assigned
+        const task = serviceRequests.find(r => r.id === requestId);
+        if (task && (task.service_type === 'petrol' || task.service_type === 'diesel') && !task.fuel_station_id) {
+          try {
+            // Get worker's current location for nearest pump finding
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject);
+            }).catch(() => null);
+
+            if (pos) {
+              await fetch("/api/assign-fuel-station", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  worker_id: worker.id,
+                  service_request_id: requestId,
+                  worker_lat: pos.coords.latitude,
+                  worker_lng: pos.coords.longitude,
+                  fuel_type: task.service_type,
+                  litres: task.litres || 1,
+                  is_cod: task.payment_method === 'COD'
+                }),
+              });
+            }
+          } catch (assignErr) {
+            console.error("Auto-assignment failed:", assignErr);
+          }
+        }
+
         setSummaryTab("Active Tasks");
         fetchTasks();
       } else {

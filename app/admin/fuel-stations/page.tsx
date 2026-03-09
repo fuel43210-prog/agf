@@ -494,7 +494,7 @@ function ManageStationModal({ id, onClose }: { id: number; onClose: () => void }
                                             </thead>
                                             <tbody>
                                                 {station.recent_ledger.map((entry: any) => (
-                                                    <tr key={entry.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                    <tr key={entry.id || entry._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                         <td style={{ padding: '0.5rem', textTransform: 'capitalize' }}>{entry.transaction_type}</td>
                                                         <td style={{ padding: '0.5rem', color: '#4ade80' }}>₹{entry.amount}</td>
                                                         <td style={{ padding: '0.5rem' }}>

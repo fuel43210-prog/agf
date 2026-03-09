@@ -801,14 +801,14 @@ export const getFuelStationAdminDetails = queryGeneric({
         linked_user_phone: linkedUser?.phone_number,
         stocks: stocksObj,
       },
-      recent_ledger,
+      recent_ledger: recent_ledger.map((l) => ({ ...l, id: l._id })),
     };
   },
 });
 
 export const updateFuelStationAdmin = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const station = await getByIdInternal(ctx, args.id);
+    const station = await getByIdInternal(ctx, args.id, "fuel_stations");
     if (!station) throw new Error("Fuel station not found");
     const patch: Record<string, any> = {};
     const fields = ["is_verified", "is_open", "cod_enabled", "cod_balance_limit", "platform_trust_flag"];
@@ -842,7 +842,7 @@ export const setUserPassword = mutationGeneric({
 
 export const deleteFuelStationDeep = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const station = await getByIdInternal(ctx, args.id);
+    const station = await getByIdInternal(ctx, args.id, "fuel_stations");
     if (!station) throw new Error("Fuel station not found");
 
     const tablesToClean = [

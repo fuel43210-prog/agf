@@ -265,7 +265,7 @@ export default function EarningsPage() {
             {data.transactions.length === 0 ? (
               <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No transactions yet</p>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ maxHeight: '450px', overflowY: 'auto', overflowX: 'auto', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.02)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>

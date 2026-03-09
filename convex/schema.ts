@@ -292,7 +292,7 @@ export default defineSchema({
     last_refilled_at: v.optional(v.string()),
     created_at: v.optional(v.string()),
     updated_at: v.optional(v.string()),
-  }),
+  }).index("by_fuel_station_id", ["fuel_station_id"]),
 
   fuel_station_ledger: defineTable({
     fuel_station_id: v.id("fuel_stations"),
@@ -305,7 +305,7 @@ export default defineSchema({
     reference_id: v.optional(v.string()),
     created_at: v.optional(v.string()),
     updated_at: v.optional(v.string()),
-  }),
+  }).index("by_fuel_station_id", ["fuel_station_id"]),
 
   cod_settlements: defineTable({
     service_request_id: v.id("service_requests"),

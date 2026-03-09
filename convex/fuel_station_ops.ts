@@ -3,7 +3,8 @@ import { mutationGeneric, queryGeneric } from "convex/server";
 const nowIso = () => new Date().toISOString();
 
 function eqId(a: any, b: any) {
-  return String(a || "") === String(b || "");
+  if (!a || !b) return false;
+  return String(a) === String(b);
 }
 
 const getByIdInternal = async (ctx: any, id: any) => {
@@ -24,32 +25,56 @@ const sanitizeIdInternal = (ctx: any, id: any, table: string = "fuel_stations") 
 
 export const resolveStation = queryGeneric({
   handler: async (ctx, args: any) => {
-    const stations = await ctx.db.query("fuel_stations").collect();
-
-    if (args?.fuel_station_id) {
-      const direct = stations.find((s) => eqId(s._id, args.fuel_station_id));
-      if (direct) return { ...direct, id: direct._id };
+    // 1. Try resolving by station ID directly
+    const stationId = args?.fuel_station_id;
+    if (stationId) {
+      const normalized = ctx.db.normalizeId("fuel_stations", stationId);
+      if (normalized) {
+        const direct = await ctx.db.get(normalized);
+        if (direct) return { ...direct, id: direct._id };
+      }
     }
 
-    if (args?.user_id) {
-      const byStationId = stations.find((s) => eqId(s._id, args.user_id));
-      if (byStationId) return { ...byStationId, id: byStationId._id };
-      const byUserRef = stations.find((s) => eqId(s.user_id, args.user_id));
-      if (byUserRef) return { ...byUserRef, id: byUserRef._id };
+    // 2. Try resolving by user ID or user-linked ID
+    const userId = args?.user_id || args?.fuel_station_id;
+    if (userId) {
+      // It might be a user ID
+      const normalizedUser = ctx.db.normalizeId("users", userId);
+      if (normalizedUser) {
+        const byUser = await ctx.db
+          .query("fuel_stations")
+          .withIndex("by_user_id", (q: any) => q.eq("user_id", normalizedUser))
+          .first();
+        if (byUser) return { ...byUser, id: byUser._id };
+      }
+
+      // Or it might be a fuel_station ID that wasn't normalized in the previous step
+      const normalizedStation = ctx.db.normalizeId("fuel_stations", userId);
+      if (normalizedStation) {
+        const byStation = await ctx.db.get(normalizedStation);
+        if (byStation) return { ...byStation, id: byStation._id };
+      }
     }
 
-    if (args?.email) {
-      const email = String(args.email).toLowerCase();
-      const byStationEmail = stations.find((s) => String(s.email || "").toLowerCase() === email);
-      if (byStationEmail) return { ...byStationEmail, id: byStationEmail._id };
+    // 3. Try resolving by email
+    const email = args?.email ? String(args.email).toLowerCase() : null;
+    if (email) {
+      const byEmail = await ctx.db
+        .query("fuel_stations")
+        .withIndex("by_email", (q: any) => q.eq("email", email))
+        .first();
+      if (byEmail) return { ...byEmail, id: byEmail._id };
 
       const user = await ctx.db
         .query("users")
-        .withIndex("by_email", (q) => q.eq("email", email))
+        .withIndex("by_email", (q: any) => q.eq("email", email))
         .first();
       if (user) {
-        const byLinkedUser = stations.find((s) => eqId(s.user_id, user._id));
-        if (byLinkedUser) return { ...byLinkedUser, id: byLinkedUser._id };
+        const byUser = await ctx.db
+          .query("fuel_stations")
+          .withIndex("by_user_id", (q: any) => q.eq("user_id", user._id))
+          .first();
+        if (byUser) return { ...byUser, id: byUser._id };
       }
     }
 
@@ -60,9 +85,16 @@ export const resolveStation = queryGeneric({
 export const getStocks = queryGeneric({
   handler: async (ctx, args: any) => {
     const stationId = args?.fuel_station_id;
-    const rows = await ctx.db.query("fuel_station_stock").collect();
+    if (!stationId) return [];
+
+    const normalized = ctx.db.normalizeId("fuel_stations", stationId);
+    if (!normalized) return [];
+
+    const rows = await ctx.db
+      .query("fuel_station_stock")
+      .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", normalized))
+      .collect();
     return rows
-      .filter((r) => eqId(r.fuel_station_id, stationId))
       .sort((a, b) => String(a.fuel_type || "").localeCompare(String(b.fuel_type || "")))
       .map((r) => ({ ...r, id: r._id }));
   },
@@ -71,12 +103,18 @@ export const getStocks = queryGeneric({
 export const upsertStock = mutationGeneric({
   handler: async (ctx, args: any) => {
     const stationId = args?.fuel_station_id;
+    const normalized = ctx.db.normalizeId("fuel_stations", stationId);
+    if (!normalized) throw new Error("Invalid fuel station ID");
+
     const fuelType = String(args?.fuel_type || "").toLowerCase();
     const stockLitres = Number(args?.stock_litres || 0);
     const now = nowIso();
 
-    const rows = await ctx.db.query("fuel_station_stock").collect();
-    const existing = rows.find((r) => eqId(r.fuel_station_id, stationId) && r.fuel_type === fuelType);
+    const existing = await ctx.db
+      .query("fuel_station_stock")
+      .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", normalized))
+      .filter((q) => q.eq(q.field("fuel_type"), fuelType))
+      .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, {
@@ -86,7 +124,7 @@ export const upsertStock = mutationGeneric({
       });
     } else {
       await ctx.db.insert("fuel_station_stock", {
-        fuel_station_id: stationId,
+        fuel_station_id: normalized,
         fuel_type: fuelType,
         stock_litres: stockLitres,
         last_refilled_at: now,
@@ -169,9 +207,17 @@ export const listCodSettlements = queryGeneric({
 export const getEarningsSummary = queryGeneric({
   handler: async (ctx, args: any) => {
     const stationId = args?.fuel_station_id;
-    const rows = await ctx.db.query("fuel_station_ledger").collect();
-    const filtered = rows.filter((r) => eqId(r.fuel_station_id, stationId));
-    const saleRows = filtered.filter((r) =>
+    if (!stationId) return null;
+
+    const normalized = ctx.db.normalizeId("fuel_stations", stationId);
+    if (!normalized) return null;
+
+    const rows = await ctx.db
+      .query("fuel_station_ledger")
+      .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", normalized))
+      .collect();
+
+    const saleRows = rows.filter((r) =>
       ["sale", "cod_settlement"].includes(String(r.transaction_type || ""))
     );
 
