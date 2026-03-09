@@ -31,14 +31,32 @@ export const create = mutationGeneric({
 export const list = queryGeneric({
   handler: async (ctx, args: any) => {
     const all = await ctx.db.query("service_requests").collect();
-    return all
+
+    const filtered = all
       .filter((r) => (args.status ? r.status === args.status : true))
       .filter((r) => (args.user_id ? String(r.user_id || "") === String(args.user_id) : true))
       .filter((r) =>
         args.assigned_worker ? String(r.assigned_worker || "") === String(args.assigned_worker) : true
       )
-      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
-      .map((r) => ({ ...r, id: r._id }));
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+
+    // Enrich with fuel station details if present
+    return await Promise.all(
+      filtered.map(async (r) => {
+        let stationInfo = {};
+        if (r.fuel_station_id) {
+          const station = await ctx.db.get(r.fuel_station_id);
+          if (station) {
+            stationInfo = {
+              fuel_station_name: station.station_name,
+              fuel_station_lat: station.latitude,
+              fuel_station_lon: station.longitude,
+            };
+          }
+        }
+        return { ...r, id: r._id, ...stationInfo };
+      })
+    );
   },
 });
 

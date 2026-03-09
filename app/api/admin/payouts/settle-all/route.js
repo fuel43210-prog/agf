@@ -27,6 +27,7 @@ export async function POST(request) {
 
   try {
     const eligibleWorkers = (await convexQuery("admin:listEligibleWorkersForPayout", {})) || [];
+    console.log(`[Settle-All] Found ${eligibleWorkers.length} eligible workers for payout.`);
     if (eligibleWorkers.length === 0) {
       return errorResponse("No verified workers found with pending balance.", 400);
     }
@@ -105,10 +106,12 @@ export async function POST(request) {
           });
         }
 
+        // Razorpay reference_id has a 40-char limit
+        const refId = `W${String(worker.id).slice(-6)}_${Date.now().toString().slice(-9)}`;
         const payout = await createRazorpayPayout({
           fund_account_id,
           amount: pendingBalance,
-          reference_id: `SETTLE_${worker.id}_${Date.now()}`,
+          reference_id: refId,
         });
 
         await convexMutation("admin:finalizeWorkerPayout", {

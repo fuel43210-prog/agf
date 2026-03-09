@@ -606,7 +606,7 @@ export const listEligibleWorkersForPayout = queryGeneric({
           razorpay_fund_account_id: bd?.razorpay_fund_account_id || "",
         };
       })
-      .filter((w) => Number(w.is_bank_verified || 0) === 1);
+      .filter((w) => Number(w.is_bank_verified || 0) === 1 && !!w.account_number && !!w.ifsc_code);
   },
 });
 
