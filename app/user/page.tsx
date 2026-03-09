@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿"use client";
+﻿﻿"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
@@ -39,6 +39,7 @@ type ServiceRequest = {
   review_comment?: string;
   payment_details?: string | null;
   payment_status?: string | null;
+  _id?: any;
 };
 
 type CodEligibility = {
@@ -202,7 +203,8 @@ export default function UserDashboardPage() {
       if (Array.isArray(data)) {
         // Ensure IDs are strings
         data.forEach(req => {
-          req.id = String(req.id);
+          const actualId = (req.id && String(req.id) !== "undefined") ? req.id : req._id;
+          if (actualId) req.id = String(actualId);
           if (req.user_id) req.user_id = String(req.user_id);
           if (req.assigned_worker) req.assigned_worker = String(req.assigned_worker);
         });
@@ -547,14 +549,14 @@ export default function UserDashboardPage() {
     } else {
       // For Crane, Mechanic Bike, Mechanic Car
       const baseFee = getServiceAmount(requestForm.service_type);
-      
+
       let surgeFee = 0;
       const surgeReasons: string[] = [];
-      
+
       const now = new Date();
       const hour = now.getHours();
       const isNight = hour >= 21 || hour < 6;
-      
+
       if (isNight) {
         surgeFee += Math.round(baseFee * 0.5);
         surgeReasons.push('Night delivery');
@@ -563,7 +565,7 @@ export default function UserDashboardPage() {
         surgeFee += Math.round(baseFee * 0.3);
         surgeReasons.push('Rainy weather');
       }
-      
+
       const total = baseFee + surgeFee;
 
       setBillPreview({

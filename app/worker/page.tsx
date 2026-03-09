@@ -33,6 +33,7 @@ type ServiceRequest = {
   fuel_station_lon?: number | null;
   worker_payout?: number | null;
   distance_km?: number | null;
+  _id?: any;
 };
 
 type SettlementInfo = {
@@ -209,7 +210,8 @@ export default function WorkerDashboardPage() {
       if (Array.isArray(allRequests)) {
         // Ensure IDs are strings
         allRequests.forEach(req => {
-          req.id = String(req.id);
+          const actualId = (req.id && String(req.id) !== "undefined") ? req.id : req._id;
+          if (actualId) req.id = String(actualId);
           if (req.user_id) req.user_id = String(req.user_id);
           if (req.assigned_worker) req.assigned_worker = String(req.assigned_worker);
         });
@@ -853,7 +855,7 @@ export default function WorkerDashboardPage() {
             </button>
           </SpotlightCard>
 
-                    <SpotlightCard className="worker-action-card" spotlightColor="rgba(234, 179, 8, 0.2)">
+          <SpotlightCard className="worker-action-card" spotlightColor="rgba(234, 179, 8, 0.2)">
             <button
               type="button"
               className="worker-action-card-inner"

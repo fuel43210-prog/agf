@@ -7,7 +7,7 @@ export async function GET(_request, context) {
   try {
     const params = context?.params ? await context.params : null;
     const id = params?.id;
-    if (!id) return NextResponse.json({ error: "Invalid request ID" }, { status: 400 });
+    if (!id || id === "undefined") return NextResponse.json({ error: "Invalid request ID" }, { status: 400 });
 
     const row = await convexQuery("service_requests:getById", { id });
     if (!row) return NextResponse.json({ error: "Service request not found" }, { status: 404 });
@@ -22,7 +22,7 @@ export async function PATCH(request, context) {
   try {
     const params = context?.params ? await context.params : null;
     const id = params?.id;
-    if (!id) return NextResponse.json({ error: "Invalid request ID" }, { status: 400 });
+    if (!id || id === "undefined") return NextResponse.json({ error: "Invalid request ID" }, { status: 400 });
 
     const body = await request.json();
     const statusRaw = body?.status;

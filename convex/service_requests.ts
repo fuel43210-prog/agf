@@ -37,7 +37,8 @@ export const list = queryGeneric({
       .filter((r) =>
         args.assigned_worker ? String(r.assigned_worker || "") === String(args.assigned_worker) : true
       )
-      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+      .map((r) => ({ ...r, id: r._id }));
   },
 });
 
@@ -61,7 +62,8 @@ const sanitizeIdInternal = (ctx: any, tableName: string, id: any) => {
 
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
-    return await getByIdInternal(ctx, args.id);
+    const row = await getByIdInternal(ctx, args.id);
+    return row ? { ...row, id: row._id } : null;
   },
 });
 

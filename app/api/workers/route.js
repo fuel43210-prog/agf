@@ -44,7 +44,7 @@ export async function PATCH(request) {
     const body = await request.json();
     const { id, service_type, status, latitude, longitude, license_photo, self_photo, submit_docs } = body || {};
 
-    if (!id) {
+    if (!id || id === "undefined") {
       return NextResponse.json({ error: "Worker ID is required" }, { status: 400 });
     }
 

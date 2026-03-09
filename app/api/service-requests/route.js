@@ -99,7 +99,7 @@ export async function PATCH(request) {
     const { id, status, assigned_worker, cod_failure_reason, payment_status, payment_method, fuel_station_id } =
       body || {};
 
-    if (!id) {
+    if (!id || id === "undefined") {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
