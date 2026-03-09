@@ -126,7 +126,8 @@ export async function PATCH(request) {
         fuel_station_id,
       });
     } catch (err) {
-      if (/not found/i.test(String(err?.message || ""))) {
+      const errorString = String(err?.data || err?.message || "");
+      if (/not found/i.test(errorString)) {
         return NextResponse.json({ error: "Service request not found" }, { status: 404 });
       }
       throw err;
