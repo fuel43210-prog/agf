@@ -155,6 +155,100 @@ export const updateStatus = mutationGeneric({
       if (args.payment_method !== undefined) patch.payment_method = args.payment_method;
       if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id);
       await ctx.db.patch(row._id, patch);
+
+      // Settlement and Financial update logic on Completion
+      if (args.status === "Completed") {
+        const workerId = row.assigned_worker || (args.assigned_worker ? sanitizeIdInternal(ctx, "workers", args.assigned_worker) : undefined);
+        const fuelStationId = row.fuel_station_id || (args.fuel_station_id ? sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id) : undefined);
+
+        const now = nowIso();
+        let workerEarnings = 0;
+        let stationEarnings = 0;
+        const totalAmount = Number(row.amount || 0);
+
+        // 1. Worker Earnings
+        if (workerId) {
+          const worker = await ctx.db.get(workerId);
+          if (worker) {
+            // Update floater_cash if it was a COD (Cash on Delivery) order
+            if (row.payment_method === "COD") {
+              const currentFloater = Number(worker.floater_cash || 0);
+              await ctx.db.patch(worker._id, {
+                floater_cash: currentFloater + totalAmount,
+                updated_at: now,
+              });
+            }
+
+            // Calculate Worker Payout (Earnings for this job)
+            const isFuel = row.service_type === "petrol" || row.service_type === "diesel";
+            const basePay = 50;
+            const perKmRate = 10;
+            const minGuarantee = 100;
+            workerEarnings = basePay;
+            if (isFuel) {
+              const distanceKm = Number(row.distance_km || 0);
+              workerEarnings = Math.max(basePay + (distanceKm * perKmRate), minGuarantee);
+            }
+
+            // Update worker's pending balance (earnings available for next payout)
+            await ctx.db.patch(worker._id, {
+              pending_balance: Number(worker.pending_balance || 0) + workerEarnings,
+              updated_at: now,
+            });
+          }
+        }
+
+        // 2. Fuel Station Earnings
+        if (fuelStationId) {
+          const station = await ctx.db.get(fuelStationId);
+          if (station) {
+            // Station payout is based on fuel cost (litres * price)
+            stationEarnings = Number(row.litres || 0) * Number(row.fuel_price || 0);
+
+            // If it's not a fuel delivery (e.g., crane), station payout logic might vary, 
+            // but for now we assume stationEarnings is 0 if no fuel details.
+
+            if (stationEarnings > 0) {
+              await ctx.db.patch(station._id, {
+                pending_payout: Number(station.pending_payout || 0) + stationEarnings,
+                total_earnings: Number(station.total_earnings || 0) + stationEarnings,
+                updated_at: now,
+              });
+
+              // Create ledger entry for the station
+              await ctx.db.insert("fuel_station_ledger", {
+                fuel_station_id: station._id,
+                transaction_type: "sale",
+                amount: stationEarnings,
+                description: `Fulfilled ${row.litres}L ${row.service_type} for order #${row._id}`,
+                status: "pending",
+                reference_id: String(row._id),
+                created_at: now,
+                updated_at: now,
+              });
+            }
+          }
+        }
+
+        // 3. Global Settlement Record
+        await ctx.db.insert("settlements", {
+          service_request_id: row._id,
+          worker_id: workerId as any,
+          fuel_station_id: fuelStationId as any,
+          settlement_date: now,
+          customer_amount: totalAmount,
+          fuel_cost: stationEarnings,
+          delivery_fee: (row.service_type === "petrol" || row.service_type === "diesel") ? 80 : 0,
+          platform_service_fee: Math.round(totalAmount * 0.05),
+          surge_fee: 0,
+          fuel_station_payout: stationEarnings,
+          worker_payout: workerEarnings,
+          platform_profit: totalAmount - workerEarnings - stationEarnings,
+          status: "pending_reconciliation",
+          created_at: now,
+          updated_at: now,
+        });
+      }
       return { ok: true };
     } catch (err: any) {
       console.error("updateStatus error:", err);

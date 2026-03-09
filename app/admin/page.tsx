@@ -746,10 +746,10 @@ function AdminDashboardContent() {
                 </button>
               </div>
               <div className="admin-chart-body" style={{ padding: "1rem" }}>
-                <div style={{ overflowX: "auto" }}>
+                <div style={{ overflowX: "auto", maxHeight: "450px", overflowY: "auto" }}>
                   <table className="admin-requests-table" style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #334155", color: "#94a3b8", fontSize: "0.875rem" }}>
+                    <thead style={{ position: "sticky", top: 0, background: "#0f172a", zIndex: 1, boxShadow: "0 1px 0 #334155" }}>
+                      <tr style={{ color: "#94a3b8", fontSize: "0.875rem" }}>
                         <th style={{ padding: "0.75rem" }}>Worker</th>
                         <th style={{ padding: "0.75rem" }}>Service</th>
                         <th style={{ padding: "0.75rem", textAlign: "right" }}>Online Earnings</th>

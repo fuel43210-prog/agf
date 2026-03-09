@@ -682,7 +682,7 @@ export const createFloatingPayment = mutationGeneric({
   handler: async (ctx, args: any) => {
     const now = nowIso();
     const id = await ctx.db.insert("floating_cash_payments", {
-      worker_id: args.worker_id,
+      worker_id: sanitizeIdInternal(ctx, args.worker_id, "workers"),
       amount: Number(args.amount),
       amount_paise: Number(args.amount_paise),
       purpose: "FLOATING_CASH_CLEAR",

@@ -317,9 +317,9 @@ export default function WorkerProfilePage() {
                             </div>
                         </div>
                     ) : bankDetails && bankDetails.is_bank_verified === 0 ? (
-                        <div style={{ padding: '1.5rem', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' }}>
-                            <p style={{ margin: 0, color: '#92400e', fontSize: '0.9rem' }}>
-                                ⏳ <strong>Verification Pending:</strong> Your bank details are being reviewed by the admin.
+                        <div style={{ padding: '1.5rem', background: '#00000022', borderRadius: '12px', border: '1px solid #fef3c7' }}>
+                            <p style={{ margin: 0, color: '#2b920eff', fontSize: '0.9rem' }}>
+                                ⏳ <strong>Verification Pending:</strong> Your bank details are being reviewed by the System.
                             </p>
                             <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', opacity: 0.7 }}>
                                 <div>

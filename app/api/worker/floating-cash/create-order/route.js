@@ -66,22 +66,49 @@ export async function POST(request) {
     }
 
     const amountPaise = Math.round(floaterCash * 100);
-    const order = await razorpay.orders.create({
-      amount: amountPaise,
-      currency: "INR",
-      receipt: `floater_clear_${workerId}_${Date.now()}`,
-      notes: {
-        worker_id: String(workerId),
-        purpose: "FLOATING_CASH_CLEAR",
-      },
-    });
+    console.log("Creating Razorpay order:", { amountPaise, workerId, floaterCash });
 
-    await convexMutation("admin:createFloatingPayment", {
-      worker_id: workerId,
-      amount: floaterCash,
-      amount_paise: amountPaise,
-      razorpay_order_id: order.id,
-    });
+    // Razorpay receipt limit is 40 characters. 
+    const receiptId = `fc_${String(workerId).slice(-8)}_${Date.now().toString().slice(-8)}`;
+    console.log("Generated Receipt ID:", receiptId, "Length:", receiptId.length);
+
+    let order;
+    try {
+      order = await razorpay.orders.create({
+        amount: amountPaise,
+        currency: "INR",
+        receipt: receiptId,
+        notes: {
+          worker_id: String(workerId),
+          purpose: "FLOATING_CASH_CLEAR",
+        },
+      });
+      console.log("Razorpay order created successfully:", order.id);
+    } catch (rzpErr) {
+      console.error("Razorpay order creation failed:", rzpErr);
+      return NextResponse.json({
+        error: "Razorpay order creation failed.",
+        details: rzpErr.message,
+        code: rzpErr.code,
+        receipt: receiptId
+      }, { status: 500 });
+    }
+
+    try {
+      await convexMutation("admin:createFloatingPayment", {
+        worker_id: workerId,
+        amount: floaterCash,
+        amount_paise: amountPaise,
+        razorpay_order_id: order.id,
+      });
+      console.log("Convex floating payment record created.");
+    } catch (convErr) {
+      console.error("Convex createFloatingPayment failed:", convErr);
+      return NextResponse.json({
+        error: "Failed to record payment in database.",
+        details: convErr.message
+      }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -92,7 +119,10 @@ export async function POST(request) {
       floater_cash: floaterCash,
     });
   } catch (err) {
-    console.error("Worker floating-cash create-order error:", err);
-    return NextResponse.json({ error: "Failed to create floating cash order." }, { status: 500 });
+    console.error("Worker floating-cash create-order top-level error:", err);
+    return NextResponse.json({
+      error: "Internal server error during order creation.",
+      details: err.message
+    }, { status: 500 });
   }
 }
