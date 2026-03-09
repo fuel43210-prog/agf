@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentUser, getAuthHeaders } from '@/app/utils/authGuard';
+import SpotlightCard from '@/app/SpotlightCard';
 
 interface EarningsData {
   station_earnings: {
@@ -148,7 +149,7 @@ export default function EarningsPage() {
       {data && (
         <>
           <div className="station-grid">
-            <div className="station-card">
+            <SpotlightCard className="station-card" spotlightColor="rgba(34, 197, 94, 0.15)">
               <div className="station-stat-header">
                 <span className="station-stat-label">Total Earnings</span>
                 <div className="station-stat-icon bg-green-soft">Rs</div>
@@ -157,9 +158,9 @@ export default function EarningsPage() {
                 Rs {data.station_earnings.total_earnings.toLocaleString('en-IN')}
               </div>
               <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>Lifetime earnings</p>
-            </div>
+            </SpotlightCard>
 
-            <div className="station-card">
+            <SpotlightCard className="station-card" spotlightColor="rgba(234, 179, 8, 0.15)">
               <div className="station-stat-header">
                 <span className="station-stat-label">Pending Payout</span>
                 <div className="station-stat-icon bg-yellow-soft">P</div>
@@ -168,28 +169,40 @@ export default function EarningsPage() {
                 Rs {data.station_earnings.pending_payout.toLocaleString('en-IN')}
               </div>
               <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>Available for settlement</p>
-            </div>
+            </SpotlightCard>
           </div>
 
-          <div className="station-card">
+          <div className="station-card-container">
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1.5rem' }}>Earnings Breakdown</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <SpotlightCard
+                spotlightColor="rgba(255, 255, 255, 0.1)"
+                className="breakdown-card"
+              >
                 <p style={{ fontSize: '0.8125rem', color: '#64748b', marginBottom: '0.25rem' }}>Total Transactions</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{data.summary.total_transactions}</p>
-              </div>
-              <div style={{ padding: '1.25rem', background: 'rgba(34, 197, 94, 0.05)', borderRadius: '0.75rem', border: '1px solid rgba(34, 197, 94, 0.1)' }}>
+              </SpotlightCard>
+              <SpotlightCard
+                spotlightColor="rgba(34, 197, 94, 0.2)"
+                className="breakdown-card"
+              >
                 <p style={{ fontSize: '0.8125rem', color: '#22c55e', marginBottom: '0.25rem' }}>Completed</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#22c55e' }}>Rs {data.summary.completed_earnings.toLocaleString('en-IN')}</p>
-              </div>
-              <div style={{ padding: '1.25rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '0.75rem', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+              </SpotlightCard>
+              <SpotlightCard
+                spotlightColor="rgba(59, 130, 246, 0.2)"
+                className="breakdown-card"
+              >
                 <p style={{ fontSize: '0.8125rem', color: '#3b82f6', marginBottom: '0.25rem' }}>Settled</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#3b82f6' }}>Rs {data.summary.settled_earnings.toLocaleString('en-IN')}</p>
-              </div>
-              <div style={{ padding: '1.25rem', background: 'rgba(234, 179, 8, 0.05)', borderRadius: '0.75rem', border: '1px solid rgba(234, 179, 8, 0.1)' }}>
+              </SpotlightCard>
+              <SpotlightCard
+                spotlightColor="rgba(234, 179, 8, 0.2)"
+                className="breakdown-card"
+              >
                 <p style={{ fontSize: '0.8125rem', color: '#eab308', marginBottom: '0.25rem' }}>Pending</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#eab308' }}>Rs {data.summary.pending_earnings.toLocaleString('en-IN')}</p>
-              </div>
+              </SpotlightCard>
             </div>
           </div>
 

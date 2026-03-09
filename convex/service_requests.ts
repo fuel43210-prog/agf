@@ -174,6 +174,29 @@ export const updateStatus = mutationGeneric({
       if (args.fuel_station_id !== undefined) patch.fuel_station_id = sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id);
       await ctx.db.patch(row._id, patch);
 
+      // --- NEW: Update User COD Stats & Trust Score ---
+      if (row.user_id) {
+        const user = await ctx.db.get(row.user_id);
+        if (user) {
+          const userPatch: Record<string, any> = { updated_at: nowIso() };
+          const isCod = row.payment_method === "COD" || args.payment_method === "COD";
+
+          if (args.status === "Completed" && isCod) {
+            userPatch.cod_success_count = (user.cod_success_count || 0) + 1;
+            userPatch.trust_score = Math.min(100, (user.trust_score || 50) + 5);
+          } else if (args.status === "Cancelled" && args.cod_failure_reason) {
+            userPatch.cod_failure_count = (user.cod_failure_count || 0) + 1;
+            userPatch.cod_last_failure_reason = args.cod_failure_reason;
+            userPatch.trust_score = Math.max(0, (user.trust_score || 50) - 20);
+          }
+
+          if (Object.keys(userPatch).length > 1) {
+            await ctx.db.patch(user._id, userPatch);
+          }
+        }
+      }
+      // ------------------------------------------------
+
       // Settlement and Financial update logic on Completion
       if (args.status === "Completed") {
         const workerId = row.assigned_worker || (args.assigned_worker ? sanitizeIdInternal(ctx, "workers", args.assigned_worker) : undefined);
@@ -223,9 +246,6 @@ export const updateStatus = mutationGeneric({
             // Station payout is based on fuel cost (litres * price)
             stationEarnings = Number(row.litres || 0) * Number(row.fuel_price || 0);
 
-            // If it's not a fuel delivery (e.g., crane), station payout logic might vary, 
-            // but for now we assume stationEarnings is 0 if no fuel details.
-
             if (stationEarnings > 0) {
               await ctx.db.patch(station._id, {
                 pending_payout: Number(station.pending_payout || 0) + stationEarnings,
@@ -244,6 +264,25 @@ export const updateStatus = mutationGeneric({
                 created_at: now,
                 updated_at: now,
               });
+
+              // --- Deduct Stock ---
+              const fuelType = String(row.service_type || "").toLowerCase();
+              if (fuelType === "petrol" || fuelType === "diesel") {
+                const stockRecord = await ctx.db
+                  .query("fuel_station_stock")
+                  .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", station._id))
+                  .filter((q) => q.eq(q.field("fuel_type"), fuelType))
+                  .first();
+
+                if (stockRecord) {
+                  const currentStock = Number(stockRecord.stock_litres || 0);
+                  await ctx.db.patch(stockRecord._id, {
+                    stock_litres: Math.max(0, currentStock - Number(row.litres || 0)),
+                    updated_at: now,
+                  });
+                }
+              }
+              // --------------------
             }
           }
         }

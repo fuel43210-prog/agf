@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getCurrentUser, getAuthHeaders } from '@/app/utils/authGuard';
+import SpotlightCard from '@/app/SpotlightCard';
 
 interface DashboardStats {
   total_earnings: number;
@@ -93,7 +94,7 @@ export default function FuelStationDashboard() {
       {stats && (
         <div className="station-grid">
           {/* Total Earnings */}
-          <div className="station-card">
+          <SpotlightCard className="station-card" spotlightColor="rgba(34, 197, 94, 0.15)">
             <div className="station-stat-header">
               <span className="station-stat-label">Total Earnings</span>
               <div className="station-stat-icon bg-green-soft">💰</div>
@@ -101,10 +102,10 @@ export default function FuelStationDashboard() {
             <div className="station-stat-value">
               ₹{stats.total_earnings.toLocaleString('en-IN')}
             </div>
-          </div>
+          </SpotlightCard>
 
           {/* Pending Payout */}
-          <div className="station-card">
+          <SpotlightCard className="station-card" spotlightColor="rgba(234, 179, 8, 0.15)">
             <div className="station-stat-header">
               <span className="station-stat-label">Pending Payout</span>
               <div className="station-stat-icon bg-yellow-soft">⏳</div>
@@ -112,10 +113,10 @@ export default function FuelStationDashboard() {
             <div className="station-stat-value">
               ₹{stats.pending_payout.toLocaleString('en-IN')}
             </div>
-          </div>
+          </SpotlightCard>
 
           {/* Petrol Stock */}
-          <div className="station-card">
+          <SpotlightCard className="station-card" spotlightColor="rgba(59, 130, 246, 0.15)">
             <div className="station-stat-header">
               <span className="station-stat-label">Petrol Stock</span>
               <div className="station-stat-icon bg-blue-soft">⛽</div>
@@ -123,10 +124,10 @@ export default function FuelStationDashboard() {
             <div className="station-stat-value">
               {stats.petrol_stock}L
             </div>
-          </div>
+          </SpotlightCard>
 
           {/* Diesel Stock */}
-          <div className="station-card">
+          <SpotlightCard className="station-card" spotlightColor="rgba(168, 85, 247, 0.15)">
             <div className="station-stat-header">
               <span className="station-stat-label">Diesel Stock</span>
               <div className="station-stat-icon bg-purple-soft">⛽</div>
@@ -134,7 +135,7 @@ export default function FuelStationDashboard() {
             <div className="station-stat-value">
               {stats.diesel_stock}L
             </div>
-          </div>
+          </SpotlightCard>
         </div>
       )}
 
@@ -158,7 +159,7 @@ export default function FuelStationDashboard() {
           </div>
 
           {/* Pending COD Settlements */}
-          
+
         </div>
       )}
 

@@ -140,21 +140,31 @@ export const upsertStock = mutationGeneric({
 export const decreaseStock = mutationGeneric({
   handler: async (ctx, args: any) => {
     const stationId = args?.fuel_station_id;
+    const normalized = ctx.db.normalizeId("fuel_stations", stationId);
+    if (!normalized) throw new Error("Invalid fuel station ID");
+
     const fuelType = String(args?.fuel_type || "").toLowerCase();
     const litres = Number(args?.litres_picked_up || 0);
     const now = nowIso();
 
-    const rows = await ctx.db.query("fuel_station_stock").collect();
-    const existing = rows.find((r) => eqId(r.fuel_station_id, stationId) && r.fuel_type === fuelType);
+    const existing = await ctx.db
+      .query("fuel_station_stock")
+      .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", normalized))
+      .filter((q) => q.eq(q.field("fuel_type"), fuelType))
+      .first();
+
     if (!existing) {
       throw new Error(`Stock record for ${fuelType} not found`);
     }
+
     const current = Number(existing.stock_litres || 0);
     if (current < litres) {
       throw new Error(`Insufficient stock. Available: ${current}L, Requested: ${litres}L`);
     }
+
     const remaining = current - litres;
     await ctx.db.patch(existing._id, { stock_litres: remaining, updated_at: now });
+
     return { ok: true, remaining_stock: remaining, updated_at: now };
   },
 });
