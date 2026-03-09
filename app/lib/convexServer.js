@@ -18,7 +18,27 @@ function getConvexUrl() {
 }
 
 function getClient() {
-  return new ConvexHttpClient(getConvexUrl());
+  const customFetch = async (url, options) => {
+    try {
+      const resp = await fetch(url, options);
+      if (!resp.ok) {
+        let text = "";
+        try { text = await resp.clone().text(); } catch (e) { }
+        if (!text) {
+          // Convex throws an empty error when the response text is empty. We preempt it here.
+          throw new Error(`Convex fetch failed: HTTP ${resp.status} ${resp.statusText} at ${url}. ` +
+            `This usually means your Convex URL is incorrect or the deployment does not exist.`);
+        }
+      }
+      return resp;
+    } catch (e) {
+      if (e.message && e.message.includes("fetch failed")) {
+        throw new Error(`Convex network error: Could not reach ${url}. Check your internet connection or NEXT_PUBLIC_CONVEX_URL.`);
+      }
+      throw e;
+    }
+  };
+  return new ConvexHttpClient(getConvexUrl(), { fetch: customFetch });
 }
 
 async function convexQuery(functionName, args = {}) {
