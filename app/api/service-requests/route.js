@@ -3,6 +3,7 @@ const { convexQuery, convexMutation } = require("../../lib/convexServer");
 
 const VALID_SERVICE_TYPES = ["petrol", "diesel", "crane", "mechanic_bike", "mechanic_car"];
 const VALID_STATUSES = ["Pending", "Assigned", "In Progress", "Completed", "Cancelled"];
+const DEBUG_SERVICE_REQUESTS = process.env.DEBUG_SERVICE_REQUESTS === "1" || process.env.DEBUG_LOGS === "1";
 
 export async function POST(request) {
   try {
@@ -80,8 +81,11 @@ export async function GET(request) {
     if (assigned_worker) args.assigned_worker = assigned_worker;
 
     const rows = await convexQuery("service_requests:list", args);
-    console.log("Service requests fetched with filters:", args);
-    console.log("Rows count:", rows?.length);
+    if (DEBUG_SERVICE_REQUESTS) {
+      console.log(
+        `[ServiceRequests] list user=${user_id || "-"} status=${status || "-"} worker=${assigned_worker || "-"} count=${rows?.length ?? 0}`
+      );
+    }
     return NextResponse.json(rows || []);
   } catch (err) {
     console.error("Service requests list error details:", err);
@@ -104,7 +108,7 @@ export async function PATCH(request) {
     }
 
     if (admin_force === true) {
-      const { requireAdmin } = require("../../database/auth-middleware");
+      const { requireAdmin } = require("../../../database/auth-middleware");
       const auth = requireAdmin(request);
       if (!auth) {
         return NextResponse.json({ error: "Unauthorized: Admin role required for force update" }, { status: 401 });
@@ -160,4 +164,3 @@ export async function PATCH(request) {
     }, { status: 500 });
   }
 }
-

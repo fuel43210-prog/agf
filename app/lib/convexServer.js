@@ -1,5 +1,10 @@
 const { ConvexHttpClient } = require("convex/browser");
 
+let cachedClient = null;
+let cachedUrl = null;
+let loggedResolvedUrl = false;
+const DEBUG_CONVEX = process.env.DEBUG_CONVEX === "1" || process.env.DEBUG_LOGS === "1";
+
 function getConvexUrl() {
   let url = process.env.NEXT_PUBLIC_CONVEX_URL || process.env.CONVEX_URL || "";
 
@@ -13,11 +18,16 @@ function getConvexUrl() {
     url = url.replace(".convex.site", ".convex.cloud"); // Client requires .cloud domain
   }
 
-  console.log("[ConvexServer] Resolved URL:", "FOUND (starts with " + url.substring(0, 10) + "...)");
+  if (DEBUG_CONVEX && !loggedResolvedUrl) {
+    loggedResolvedUrl = true;
+    console.log("[ConvexServer] Resolved URL:", "FOUND (starts with " + url.substring(0, 10) + "...)");
+  }
   return url;
 }
 
 function getClient() {
+  if (cachedClient) return cachedClient;
+
   const customFetch = async (url, options) => {
     try {
       const resp = await fetch(url, options);
@@ -38,7 +48,10 @@ function getClient() {
       throw e;
     }
   };
-  return new ConvexHttpClient(getConvexUrl(), { fetch: customFetch });
+
+  cachedUrl = getConvexUrl();
+  cachedClient = new ConvexHttpClient(cachedUrl, { fetch: customFetch });
+  return cachedClient;
 }
 
 async function convexQuery(functionName, args = {}) {
@@ -74,4 +87,3 @@ module.exports = {
   convexQuery,
   convexMutation,
 };
-

@@ -186,7 +186,9 @@ export default function AdminMap({
   children,
 }: AdminMapProps = {}) {
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
-  const [fuelStations, setFuelStations] = useState<Array<{ id: number; name: string; latitude: number; longitude: number }>>([]);
+  const [fuelStations, setFuelStations] = useState<
+    Array<{ id: number | string; name: string; latitude: number; longitude: number }>
+  >([]);
   const [tileType, setTileType] = useState<TileType>("street");
   const [locationError, setLocationError] = useState<string | null>(null);
   const [showTileControls, setShowTileControls] = useState(false);
@@ -201,7 +203,19 @@ export default function AdminMap({
   useEffect(() => {
     fetch("/api/fuel-stations")
       .then((res) => res.json())
-      .then((data) => setFuelStations(Array.isArray(data) ? data : []))
+      .then((data) => {
+        if (!Array.isArray(data)) return setFuelStations([]);
+        setFuelStations(
+          data
+            .map((station) => {
+              const name = String(station?.station_name || station?.name || "Unnamed Station").trim() || "Unnamed Station";
+              const latitude = Number(station?.latitude);
+              const longitude = Number(station?.longitude);
+              return { id: station?.id ?? station?._id ?? name, name, latitude, longitude };
+            })
+            .filter((station) => isFiniteCoord(station.latitude) && isFiniteCoord(station.longitude))
+        );
+      })
       .catch(() => setFuelStations([]));
   }, []);
 
@@ -370,7 +384,7 @@ export default function AdminMap({
           ))}
 
         {/* Fuel Stations */}
-        {mapZoom >= FUEL_STATIONS_MIN_ZOOM && fuelStations.filter((station) => isFiniteCoord(station?.latitude) && isFiniteCoord(station?.longitude)).map((station) => (
+        {mapZoom >= FUEL_STATIONS_MIN_ZOOM && fuelStations.map((station) => (
           <Marker
             key={station.id}
             position={[station.latitude, station.longitude]}
@@ -381,7 +395,12 @@ export default function AdminMap({
                 : undefined
             }
           >
-            <Popup>⛽ {station.name}</Popup>
+            <Popup>
+              <div className="leaflet-popup-premium-content">
+                <strong> {station.name || "Unnamed Station"}</strong>
+                <span>Double-click for directions</span>
+              </div>
+            </Popup>
           </Marker>
         ))}
       </MapContainer>

@@ -6,10 +6,15 @@ const crypto = require('crypto');
 const DEFAULT_JWT_SECRET = 'your-secret-key-change-in-production';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 let warnedInsecureSecret = false;
+let loggedJwtSecretState = false;
+const DEBUG_AUTH = process.env.DEBUG_AUTH === '1' || process.env.DEBUG_LOGS === '1';
 
 function resolveJwtSecret() {
   const jwtSecretFromEnv = String(process.env.JWT_SECRET || '').trim();
-  console.log("[Auth-Middleware] JWT_SECRET state:", jwtSecretFromEnv ? "SET" : "MISSING");
+  if (DEBUG_AUTH && !loggedJwtSecretState) {
+    loggedJwtSecretState = true;
+    console.log("[Auth-Middleware] JWT_SECRET state:", jwtSecretFromEnv ? "SET" : "MISSING");
+  }
   const jwtSecretIsInsecure = !jwtSecretFromEnv || jwtSecretFromEnv === DEFAULT_JWT_SECRET;
 
   if (jwtSecretIsInsecure && NODE_ENV === 'production') {
