@@ -1002,7 +1002,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #374151;
+  color: #ffffff;
   cursor: pointer;
 }
 
@@ -1455,13 +1455,13 @@ body {
 }
 
 .signup-link {
-  color: #2563eb;
+  color: #22c55e;
   text-decoration: underline;
   font-weight: 500;
 }
 
 .signup-link:hover {
-  color: #1d4ed8;
+  color: #f10800da;
 }
 
 .signup-error {

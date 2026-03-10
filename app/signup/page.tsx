@@ -286,9 +286,9 @@ export default function SignUpPage() {
           </button>
         </form>
 
-        <p className="signup-login-link">
+        <p className="signup-login-link" style={{ color: "#ef4444" }}>
           Already have an account?{" "}
-          <Link href="/login" className="signup-link">
+          <Link href="/login" className="signup-link" style={{ textDecoration: "underline" }}>
             Sign in
           </Link>
         </p>

@@ -181,9 +181,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="login-signup">
+        <p className="login-signup" style={{ color: "#ef4444" }}>
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="login-signup-link">
+          <Link href="/signup" className="login-signup-link" style={{ textDecoration: "underline" }}>
             Sign up
           </Link>
         </p>

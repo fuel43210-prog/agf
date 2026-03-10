@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
           </button>
         </form>
         <p>
-          Remembered? <Link href="/login">Sign in</Link>
+          <span style={{ color: "#ef4444" }}>Remembered?</span> <Link href="/login" style={{ color: "#22c55e" }}>Sign in</Link>
         </p>
       </div>
     </div>
