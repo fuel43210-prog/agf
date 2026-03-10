@@ -311,11 +311,12 @@ export default function HomePage() {
                 📘
               </a>
               <a href="#" className="landing-social-icon" aria-label="Twitter">
-                🐦
+                <img src="/twitter.png" alt="Twitter" style={{ width: '40px', height: '40px' }} />
               </a>
-              <a href="#" className="landing-social-icon" aria-label="Instagram">
-                📷
+               <a href="#" className="landing-social-icon" aria-label="Instagram">
+                <img src="/insta.png" alt="Instagram" style={{ width: '40px', height: '40px' }} />
               </a>
+             
             </div>
             <a href="mailto:AGF@gmail.com" className="landing-footer-chat">
               💬 Talk with us
