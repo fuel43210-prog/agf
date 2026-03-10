@@ -295,7 +295,7 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="landing-footer-column">
-              <h4 className="landing-footer-heading">Company</h4>
+              <h4 className="landing-footer-heading">Legal</h4>
               <Link href="/terms" className="landing-footer-link">
                 Terms of Service
               </Link>
