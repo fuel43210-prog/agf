@@ -97,6 +97,79 @@ const getLatestFuelAssignmentForRequest = async (ctx: any, requestId: any) => {
   );
 };
 
+const deductStationStockOnce = async (
+  ctx: any,
+  args: {
+    fuel_station_id: any;
+    fuel_type: string;
+    litres: number;
+    reference_id: any;
+  }
+) => {
+  const stationId = args.fuel_station_id;
+  const fuelType = String(args.fuel_type || "").toLowerCase();
+  const litres = Number(args.litres || 0);
+  const referenceId = args.reference_id;
+
+  if (!stationId) return { ok: false, skipped: true, reason: "missing_station" };
+  if (!(fuelType === "petrol" || fuelType === "diesel")) {
+    return { ok: false, skipped: true, reason: "invalid_fuel_type" };
+  }
+  if (!Number.isFinite(litres) || litres <= 0) {
+    return { ok: false, skipped: true, reason: "invalid_litres" };
+  }
+
+  const now = nowIso();
+  const existingLedger = await ctx.db.query("fuel_station_ledger").collect();
+  const alreadyDeducted = existingLedger.some(
+    (l: any) =>
+      String(l.fuel_station_id) === String(stationId) &&
+      String(l.transaction_type || "") === "stock_deduct" &&
+      String(l.reference_id || "") === String(referenceId)
+  );
+  if (alreadyDeducted) return { ok: true, skipped: true, reason: "already_deducted" };
+
+  let stockRecord = await ctx.db
+    .query("fuel_station_stock")
+    .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", stationId))
+    .filter((q: any) => q.eq(q.field("fuel_type"), fuelType))
+    .first();
+
+  if (!stockRecord) {
+    const insertedId = await ctx.db.insert("fuel_station_stock", {
+      fuel_station_id: stationId,
+      fuel_type: fuelType,
+      stock_litres: 0,
+      created_at: now,
+      updated_at: now,
+    });
+    stockRecord = await ctx.db.get(insertedId);
+  }
+
+  const currentStock = Number(stockRecord?.stock_litres || 0);
+  const remaining = Math.max(0, currentStock - litres);
+
+  if (stockRecord) {
+    await ctx.db.patch(stockRecord._id, {
+      stock_litres: remaining,
+      updated_at: now,
+    });
+  }
+
+  await ctx.db.insert("fuel_station_ledger", {
+    fuel_station_id: stationId,
+    transaction_type: "stock_deduct",
+    amount: 0,
+    description: `Stock deducted: ${litres}L ${fuelType} for order #${referenceId}`,
+    status: "completed",
+    reference_id: String(referenceId),
+    created_at: now,
+    updated_at: now,
+  });
+
+  return { ok: true, skipped: false, remaining_stock: remaining, deducted: litres };
+};
+
 const resolveFuelStationIdForCompletion = async (ctx: any, row: any, args: any) => {
   const fromArgs = args?.fuel_station_id
     ? sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id)
@@ -110,12 +183,6 @@ const resolveFuelStationIdForCompletion = async (ctx: any, row: any, args: any) 
 };
 
 const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) => {
-  const existingSettlement = await ctx.db
-    .query("settlements")
-    .withIndex("by_service_request_id", (q: any) => q.eq("service_request_id", row._id))
-    .first();
-  if (existingSettlement) return { ok: true, skipped: true };
-
   const latestAssignment = await getLatestFuelAssignmentForRequest(ctx, row?._id);
   const workerId =
     row.assigned_worker || (args.assigned_worker ? sanitizeIdInternal(ctx, "workers", args.assigned_worker) : undefined);
@@ -137,6 +204,20 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
     const fromAssignment = String(latestAssignment?.fuel_type || "").toLowerCase();
     return fromAssignment === "petrol" || fromAssignment === "diesel" ? fromAssignment : "";
   })();
+
+  // Always attempt stock deduction once (even if a settlement already exists).
+  await deductStationStockOnce(ctx, {
+    fuel_station_id: fuelStationId,
+    fuel_type: fuelTypeForStock,
+    litres: litresForFuel,
+    reference_id: row._id,
+  });
+
+  const existingSettlement = await ctx.db
+    .query("settlements")
+    .withIndex("by_service_request_id", (q: any) => q.eq("service_request_id", row._id))
+    .first();
+  if (existingSettlement) return { ok: true, skipped: true };
 
   // 1. Worker Earnings
   if (workerId) {
@@ -197,24 +278,8 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
         });
       }
 
-      // --- Deduct Stock (Always, regardless of stationEarnings calculation) ---
-      const fuelType = fuelTypeForStock;
-      if ((fuelType === "petrol" || fuelType === "diesel") && litresForFuel > 0) {
-        const stockRecord = await ctx.db
-          .query("fuel_station_stock")
-          .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", station._id))
-          .filter((q: any) => q.eq(q.field("fuel_type"), fuelType))
-          .first();
-
-        if (stockRecord) {
-          const currentStock = Number(stockRecord.stock_litres || 0);
-          await ctx.db.patch(stockRecord._id, {
-            stock_litres: Math.max(0, currentStock - litresForFuel),
-            updated_at: now,
-          });
-        }
-      }
-      // --------------------
+      // Stock is deducted above via `deductStationStockOnce` to make it idempotent and
+      // independent of settlement creation (so it can be fixed retroactively).
     }
   }
 
