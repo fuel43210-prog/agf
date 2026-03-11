@@ -87,6 +87,16 @@ const sanitizeIdInternal = (ctx: any, tableName: string, id: any) => {
   return normalized;
 };
 
+const getLatestFuelAssignmentForRequest = async (ctx: any, requestId: any) => {
+  if (!requestId || String(requestId) === "undefined") return null;
+  const assignments = await ctx.db.query("fuel_station_assignments").collect();
+  return (
+    assignments
+      .filter((a: any) => String(a.service_request_id) === String(requestId))
+      .sort((a: any, b: any) => String(b.assigned_at || "").localeCompare(String(a.assigned_at || "")))[0] || null
+  );
+};
+
 const resolveFuelStationIdForCompletion = async (ctx: any, row: any, args: any) => {
   const fromArgs = args?.fuel_station_id
     ? sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id)
@@ -95,10 +105,7 @@ const resolveFuelStationIdForCompletion = async (ctx: any, row: any, args: any) 
   if (fromArgs) return fromArgs;
 
   // Fallback: some flows may have an assignment but not a fuel_station_id patched onto the request.
-  const assignments = await ctx.db.query("fuel_station_assignments").collect();
-  const latest = assignments
-    .filter((a: any) => String(a.service_request_id) === String(row?._id))
-    .sort((a: any, b: any) => String(b.assigned_at || "").localeCompare(String(a.assigned_at || "")))[0];
+  const latest = await getLatestFuelAssignmentForRequest(ctx, row?._id);
   return latest?.fuel_station_id;
 };
 
@@ -109,6 +116,7 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
     .first();
   if (existingSettlement) return { ok: true, skipped: true };
 
+  const latestAssignment = await getLatestFuelAssignmentForRequest(ctx, row?._id);
   const workerId =
     row.assigned_worker || (args.assigned_worker ? sanitizeIdInternal(ctx, "workers", args.assigned_worker) : undefined);
   const fuelStationId = await resolveFuelStationIdForCompletion(ctx, row, args);
@@ -117,6 +125,18 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
   let workerEarnings = 0;
   let stationEarnings = 0;
   const totalAmount = Number(row.amount || 0);
+  const litresForFuel = (() => {
+    const fromRow = Number(row.litres || 0);
+    if (fromRow > 0) return fromRow;
+    const fromAssignment = Number(latestAssignment?.litres || 0);
+    return fromAssignment > 0 ? fromAssignment : 0;
+  })();
+  const fuelTypeForStock = (() => {
+    const fromRow = String(row.service_type || "").toLowerCase();
+    if (fromRow === "petrol" || fromRow === "diesel") return fromRow;
+    const fromAssignment = String(latestAssignment?.fuel_type || "").toLowerCase();
+    return fromAssignment === "petrol" || fromAssignment === "diesel" ? fromAssignment : "";
+  })();
 
   // 1. Worker Earnings
   if (workerId) {
@@ -155,7 +175,7 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
     const station = await ctx.db.get(fuelStationId);
     if (station) {
       // Station payout is based on fuel cost (litres * price)
-      stationEarnings = Number(row.litres || 0) * Number(row.fuel_price || 0);
+      stationEarnings = litresForFuel * Number(row.fuel_price || 0);
 
       if (stationEarnings > 0) {
         await ctx.db.patch(station._id, {
@@ -169,7 +189,7 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
           fuel_station_id: station._id,
           transaction_type: "sale",
           amount: stationEarnings,
-          description: `Fulfilled ${row.litres}L ${row.service_type} for order #${row._id}`,
+          description: `Fulfilled ${litresForFuel}L ${row.service_type} for order #${row._id}`,
           status: "pending",
           reference_id: String(row._id),
           created_at: now,
@@ -178,8 +198,8 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
       }
 
       // --- Deduct Stock (Always, regardless of stationEarnings calculation) ---
-      const fuelType = String(row.service_type || "").toLowerCase();
-      if (fuelType === "petrol" || fuelType === "diesel") {
+      const fuelType = fuelTypeForStock;
+      if ((fuelType === "petrol" || fuelType === "diesel") && litresForFuel > 0) {
         const stockRecord = await ctx.db
           .query("fuel_station_stock")
           .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", station._id))
@@ -189,7 +209,7 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
         if (stockRecord) {
           const currentStock = Number(stockRecord.stock_litres || 0);
           await ctx.db.patch(stockRecord._id, {
-            stock_litres: Math.max(0, currentStock - Number(row.litres || 0)),
+            stock_litres: Math.max(0, currentStock - litresForFuel),
             updated_at: now,
           });
         }
