@@ -234,8 +234,6 @@ export default function UserDashboardPage() {
           showToast("Worker is on the way! Your service is now In Progress.", "info");
         } else if (req.status === "Completed") {
           showToast("Service Completed! Thank you for using AGF.", "success");
-        } else if (req.status === "Cancelled") {
-         // showToast("Service Request has been cancelled.", "warning");
         }
       }
     });

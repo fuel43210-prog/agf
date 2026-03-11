@@ -129,34 +129,40 @@ export const runMaintenance = mutationGeneric({
 
 export const updateWorkerProfile = mutationGeneric({
   handler: async (ctx, args: any) => {
-    const worker = await getByIdInternal(ctx, args.id);
-    if (!worker) throw new Error("Worker not found");
+    try {
+      const worker = await getByIdInternal(ctx, args.id);
+      if (!worker) throw new ConvexError("Worker not found");
 
-    const patch: Record<string, any> = {};
-    if (args.service_type !== undefined) patch.service_type = args.service_type;
-    if (args.latitude !== undefined) patch.latitude = Number(args.latitude);
-    if (args.longitude !== undefined) patch.longitude = Number(args.longitude);
+      const patch: Record<string, any> = {};
+      if (args.service_type !== undefined) patch.service_type = args.service_type;
+      if (args.latitude !== undefined) patch.latitude = Number(args.latitude);
+      if (args.longitude !== undefined) patch.longitude = Number(args.longitude);
 
-    if (args.status !== undefined) {
-      if (worker.status_locked) {
-        throw new Error("Status is locked by Admin. You cannot change your status at this time.");
+      if (args.status !== undefined) {
+        if (worker.status_locked) {
+          throw new ConvexError("Status is locked by Admin. You cannot change your status at this time.");
+        }
+        if (!["Available", "Busy", "Offline"].includes(args.status)) {
+          throw new ConvexError("Invalid status value");
+        }
+        patch.status = args.status;
       }
-      if (!["Available", "Busy", "Offline"].includes(args.status)) {
-        throw new Error("Invalid status value");
+
+      if (args.submit_docs) {
+        if (args.license_photo) patch.license_photo = args.license_photo;
+        if (args.self_photo) patch.self_photo = args.self_photo;
+        patch.docs_submitted_at = nowIso();
       }
-      patch.status = args.status;
-    }
 
-    if (args.submit_docs) {
-      if (args.license_photo) patch.license_photo = args.license_photo;
-      if (args.self_photo) patch.self_photo = args.self_photo;
-      patch.docs_submitted_at = nowIso();
+      if (Object.keys(patch).length === 0) throw new ConvexError("No fields to update");
+      patch.updated_at = nowIso();
+      await ctx.db.patch(worker._id, patch);
+      return { ok: true };
+    } catch (err: any) {
+      console.error("Worker update profile mutation error:", err);
+      if (err?.name === "ConvexError") throw err;
+      throw new ConvexError(`Worker update failed: ${String(err?.message || err)}`);
     }
-
-    if (Object.keys(patch).length === 0) throw new Error("No fields to update");
-    patch.updated_at = nowIso();
-    await ctx.db.patch(worker._id, patch);
-    return { ok: true };
   },
 });
 
