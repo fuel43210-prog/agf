@@ -1,4 +1,5 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
+import { ConvexError } from "convex/values";
 
 const nowIso = () => new Date().toISOString();
 
@@ -10,7 +11,7 @@ export const signup = mutationGeneric({
         .withIndex("by_email", (q) => q.eq("email", String(args.email || "").toLowerCase()))
         .first();
       if (existing) {
-        throw new Error("Email already exists");
+        throw new ConvexError("Email already exists");
       }
 
       const allUsers = await ctx.db.query("users").collect();
@@ -38,7 +39,8 @@ export const signup = mutationGeneric({
       return { id: String(id) };
     } catch (err: any) {
       console.error("Signup mutation error:", err);
-      throw new Error(`Signup failed: ${err.message}`);
+      if (err?.name === "ConvexError") throw err;
+      throw new ConvexError(`Signup failed: ${String(err?.message || err)}`);
     }
   },
 });

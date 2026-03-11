@@ -1,4 +1,5 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
+import { ConvexError } from "convex/values";
 
 const nowIso = () => new Date().toISOString();
 
@@ -9,7 +10,7 @@ export const createWorker = mutationGeneric({
         .query("workers")
         .withIndex("by_email", (q) => q.eq("email", String(args.email || "").toLowerCase()))
         .first();
-      if (existing) throw new Error("Email already exists");
+      if (existing) throw new ConvexError("Email already exists");
 
       const id = await ctx.db.insert("workers", {
         email: String(args.email || "").toLowerCase(),
@@ -28,7 +29,8 @@ export const createWorker = mutationGeneric({
       return { id: String(id) };
     } catch (err: any) {
       console.error("Worker creation mutation error:", err);
-      throw new Error(`Worker creation failed: ${err.message}`);
+      if (err?.name === "ConvexError") throw err;
+      throw new ConvexError(`Worker creation failed: ${String(err?.message || err)}`);
     }
   },
 });
