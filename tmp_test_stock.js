@@ -66,11 +66,11 @@ async function main() {
     driving_licence: "TESTDL",
     phone_number: "9999999999",
     service_type: fuelType,
-    amount: 0,
+    amount: 100,
     status: "Pending",
     fuel_station_id: stationId,
-    payment_method: "TEST",
-    payment_status: "TEST",
+    payment_method: "COD",
+    payment_status: "PENDING",
     litres,
     fuel_price: 0,
     user_lat: 0,
@@ -78,6 +78,17 @@ async function main() {
   });
 
   const requestId = String(created?.id);
+  const worker = await client.mutation("workers:createWorker", {
+    email: `testworker_${Date.now()}@example.com`,
+    password: "test",
+    first_name: "Test",
+    last_name: "Worker",
+    phone_number: "9999999999",
+  });
+  const workerId = String(worker?.id);
+
+  // Simulate assignment step so completion has `assigned_worker` on the request.
+  await client.mutation("service_requests:updateStatus", { id: requestId, status: "Assigned", assigned_worker: workerId });
   await client.mutation("service_requests:updateStatus", { id: requestId, status: "Completed" });
 
   const afterStocks = (await client.query("fuel_station_ops:getStocks", { fuel_station_id: stationId })) || [];
@@ -88,6 +99,10 @@ async function main() {
   const stockDeduct = ledger.find(
     (l) => String(l.transaction_type || "") === "stock_deduct" && String(l.reference_id || "") === requestId
   );
+
+  const codSettlements =
+    (await client.query("fuel_station_ops:listCodSettlements", { fuel_station_id: stationId, limit: 50 })) || [];
+  const codRow = codSettlements.find((r) => String(r.service_request_id || "") === requestId);
 
   if (didAdjustStock) {
     await client.mutation("fuel_station_ops:upsertStock", {
@@ -108,6 +123,7 @@ async function main() {
         stock_after: afterLitres,
         stock_delta: afterLitres - beforeLitres,
         stock_deduct_ledger_found: Boolean(stockDeduct),
+        cod_settlement_found: Boolean(codRow),
       },
       null,
       2

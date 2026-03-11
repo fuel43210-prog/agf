@@ -170,6 +170,48 @@ const deductStationStockOnce = async (
   return { ok: true, skipped: false, remaining_stock: remaining, deducted: litres };
 };
 
+const ensureCodSettlementOnce = async (
+  ctx: any,
+  args: {
+    service_request_id: any;
+    fuel_station_id: any;
+    worker_id: any;
+    customer_paid_amount: number;
+    fuel_cost: number;
+    fuel_station_payout: number;
+    platform_fee?: number;
+  }
+) => {
+  const serviceRequestId = args.service_request_id;
+  const fuelStationId = args.fuel_station_id;
+  const workerId = args.worker_id;
+  if (!serviceRequestId || !fuelStationId || !workerId) {
+    return { ok: false, skipped: true, reason: "missing_ids" };
+  }
+
+  const rows = await ctx.db.query("cod_settlements").collect();
+  const exists = rows.some((r: any) => String(r.service_request_id) === String(serviceRequestId));
+  if (exists) return { ok: true, skipped: true, reason: "already_exists" };
+
+  const now = nowIso();
+  await ctx.db.insert("cod_settlements", {
+    service_request_id: serviceRequestId,
+    fuel_station_id: fuelStationId,
+    worker_id: workerId,
+    customer_paid_amount: Number(args.customer_paid_amount || 0),
+    fuel_cost: Number(args.fuel_cost || 0),
+    fuel_station_payout: Number(args.fuel_station_payout || 0),
+    platform_fee: args.platform_fee !== undefined ? Number(args.platform_fee || 0) : undefined,
+    collection_method: "worker_cash",
+    payment_status: "pending",
+    collected_at: now,
+    created_at: now,
+    updated_at: now,
+  });
+
+  return { ok: true, skipped: false };
+};
+
 const resolveFuelStationIdForCompletion = async (ctx: any, row: any, args: any) => {
   const fromArgs = args?.fuel_station_id
     ? sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id)
@@ -212,6 +254,24 @@ const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) 
     litres: litresForFuel,
     reference_id: row._id,
   });
+
+  const isCod =
+    String(row.payment_method || args.payment_method || "")
+      .trim()
+      .toLowerCase() === "cod";
+  if (isCod && (fuelTypeForStock === "petrol" || fuelTypeForStock === "diesel")) {
+    const fuelCost = litresForFuel * Number(row.fuel_price || 0);
+    const customerPaid = Number(row.amount || 0);
+    await ensureCodSettlementOnce(ctx, {
+      service_request_id: row._id,
+      fuel_station_id: fuelStationId,
+      worker_id: workerId,
+      customer_paid_amount: customerPaid,
+      fuel_cost: fuelCost,
+      fuel_station_payout: fuelCost,
+      platform_fee: Math.max(0, customerPaid - fuelCost),
+    });
+  }
 
   const existingSettlement = await ctx.db
     .query("settlements")
