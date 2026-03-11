@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node --no-deprecation node_modules/next/dist/bin/next dev",
+    "build": "node --no-deprecation node_modules/next/dist/bin/next build",
+    "start": "node --no-deprecation node_modules/next/dist/bin/next start",
     "lint": "tsc --noEmit --incremental false",
     "convex:dev": "npx convex dev",
     "convex:deploy": "npx convex deploy",
