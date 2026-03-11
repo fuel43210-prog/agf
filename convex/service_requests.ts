@@ -87,6 +87,139 @@ const sanitizeIdInternal = (ctx: any, tableName: string, id: any) => {
   return normalized;
 };
 
+const resolveFuelStationIdForCompletion = async (ctx: any, row: any, args: any) => {
+  const fromArgs = args?.fuel_station_id
+    ? sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id)
+    : undefined;
+  if (row?.fuel_station_id) return row.fuel_station_id;
+  if (fromArgs) return fromArgs;
+
+  // Fallback: some flows may have an assignment but not a fuel_station_id patched onto the request.
+  const assignments = await ctx.db.query("fuel_station_assignments").collect();
+  const latest = assignments
+    .filter((a: any) => String(a.service_request_id) === String(row?._id))
+    .sort((a: any, b: any) => String(b.assigned_at || "").localeCompare(String(a.assigned_at || "")))[0];
+  return latest?.fuel_station_id;
+};
+
+const applyCompletionSettlementIfNeeded = async (ctx: any, row: any, args: any) => {
+  const existingSettlement = await ctx.db
+    .query("settlements")
+    .withIndex("by_service_request_id", (q: any) => q.eq("service_request_id", row._id))
+    .first();
+  if (existingSettlement) return { ok: true, skipped: true };
+
+  const workerId =
+    row.assigned_worker || (args.assigned_worker ? sanitizeIdInternal(ctx, "workers", args.assigned_worker) : undefined);
+  const fuelStationId = await resolveFuelStationIdForCompletion(ctx, row, args);
+
+  const now = nowIso();
+  let workerEarnings = 0;
+  let stationEarnings = 0;
+  const totalAmount = Number(row.amount || 0);
+
+  // 1. Worker Earnings
+  if (workerId) {
+    const worker = await ctx.db.get(workerId);
+    if (worker) {
+      // Update floater_cash if it was a COD (Cash on Delivery) order
+      if (row.payment_method === "COD") {
+        const currentFloater = Number(worker.floater_cash || 0);
+        await ctx.db.patch(worker._id, {
+          floater_cash: currentFloater + totalAmount,
+          updated_at: now,
+        });
+      }
+
+      // Calculate Worker Payout (Earnings for this job)
+      const isFuel = row.service_type === "petrol" || row.service_type === "diesel";
+      const basePay = 50;
+      const perKmRate = 10;
+      const minGuarantee = 100;
+      workerEarnings = basePay;
+      if (isFuel) {
+        const distanceKm = Number(row.distance_km || 0);
+        workerEarnings = Math.max(basePay + (distanceKm * perKmRate), minGuarantee);
+      }
+
+      // Update worker's pending balance (earnings available for next payout)
+      await ctx.db.patch(worker._id, {
+        pending_balance: Number(worker.pending_balance || 0) + workerEarnings,
+        updated_at: now,
+      });
+    }
+  }
+
+  // 2. Fuel Station Earnings + Stock Deduction
+  if (fuelStationId) {
+    const station = await ctx.db.get(fuelStationId);
+    if (station) {
+      // Station payout is based on fuel cost (litres * price)
+      stationEarnings = Number(row.litres || 0) * Number(row.fuel_price || 0);
+
+      if (stationEarnings > 0) {
+        await ctx.db.patch(station._id, {
+          pending_payout: Number(station.pending_payout || 0) + stationEarnings,
+          total_earnings: Number(station.total_earnings || 0) + stationEarnings,
+          updated_at: now,
+        });
+
+        // Create ledger entry for the station
+        await ctx.db.insert("fuel_station_ledger", {
+          fuel_station_id: station._id,
+          transaction_type: "sale",
+          amount: stationEarnings,
+          description: `Fulfilled ${row.litres}L ${row.service_type} for order #${row._id}`,
+          status: "pending",
+          reference_id: String(row._id),
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      // --- Deduct Stock (Always, regardless of stationEarnings calculation) ---
+      const fuelType = String(row.service_type || "").toLowerCase();
+      if (fuelType === "petrol" || fuelType === "diesel") {
+        const stockRecord = await ctx.db
+          .query("fuel_station_stock")
+          .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", station._id))
+          .filter((q: any) => q.eq(q.field("fuel_type"), fuelType))
+          .first();
+
+        if (stockRecord) {
+          const currentStock = Number(stockRecord.stock_litres || 0);
+          await ctx.db.patch(stockRecord._id, {
+            stock_litres: Math.max(0, currentStock - Number(row.litres || 0)),
+            updated_at: now,
+          });
+        }
+      }
+      // --------------------
+    }
+  }
+
+  // 3. Global Settlement Record
+  await ctx.db.insert("settlements", {
+    service_request_id: row._id,
+    worker_id: workerId as any,
+    fuel_station_id: fuelStationId as any,
+    settlement_date: now,
+    customer_amount: totalAmount,
+    fuel_cost: stationEarnings,
+    delivery_fee: row.service_type === "petrol" || row.service_type === "diesel" ? 80 : 0,
+    platform_service_fee: Math.round(totalAmount * 0.05),
+    surge_fee: 0,
+    fuel_station_payout: stationEarnings,
+    worker_payout: workerEarnings,
+    platform_profit: totalAmount - workerEarnings - stationEarnings,
+    status: "pending_reconciliation",
+    created_at: now,
+    updated_at: now,
+  });
+
+  return { ok: true, skipped: false };
+};
+
 export const getById = queryGeneric({
   handler: async (ctx, args: any) => {
     const row = await getByIdInternal(ctx, args.id);
@@ -232,112 +365,7 @@ export const updateStatus = mutationGeneric({
 
       // Settlement and Financial update logic on Completion
       if (args.status === "Completed") {
-        const workerId = row.assigned_worker || (args.assigned_worker ? sanitizeIdInternal(ctx, "workers", args.assigned_worker) : undefined);
-        const fuelStationId = row.fuel_station_id || (args.fuel_station_id ? sanitizeIdInternal(ctx, "fuel_stations", args.fuel_station_id) : undefined);
-
-        const now = nowIso();
-        let workerEarnings = 0;
-        let stationEarnings = 0;
-        const totalAmount = Number(row.amount || 0);
-
-        // 1. Worker Earnings
-        if (workerId) {
-          const worker = await ctx.db.get(workerId);
-          if (worker) {
-            // Update floater_cash if it was a COD (Cash on Delivery) order
-            if (row.payment_method === "COD") {
-              const currentFloater = Number(worker.floater_cash || 0);
-              await ctx.db.patch(worker._id, {
-                floater_cash: currentFloater + totalAmount,
-                updated_at: now,
-              });
-            }
-
-            // Calculate Worker Payout (Earnings for this job)
-            const isFuel = row.service_type === "petrol" || row.service_type === "diesel";
-            const basePay = 50;
-            const perKmRate = 10;
-            const minGuarantee = 100;
-            workerEarnings = basePay;
-            if (isFuel) {
-              const distanceKm = Number(row.distance_km || 0);
-              workerEarnings = Math.max(basePay + (distanceKm * perKmRate), minGuarantee);
-            }
-
-            // Update worker's pending balance (earnings available for next payout)
-            await ctx.db.patch(worker._id, {
-              pending_balance: Number(worker.pending_balance || 0) + workerEarnings,
-              updated_at: now,
-            });
-          }
-        }
-
-        // 2. Fuel Station Earnings
-        if (fuelStationId) {
-          const station = await ctx.db.get(fuelStationId);
-          if (station) {
-            // Station payout is based on fuel cost (litres * price)
-            stationEarnings = Number(row.litres || 0) * Number(row.fuel_price || 0);
-
-            if (stationEarnings > 0) {
-              await ctx.db.patch(station._id, {
-                pending_payout: Number(station.pending_payout || 0) + stationEarnings,
-                total_earnings: Number(station.total_earnings || 0) + stationEarnings,
-                updated_at: now,
-              });
-
-              // Create ledger entry for the station
-              await ctx.db.insert("fuel_station_ledger", {
-                fuel_station_id: station._id,
-                transaction_type: "sale",
-                amount: stationEarnings,
-                description: `Fulfilled ${row.litres}L ${row.service_type} for order #${row._id}`,
-                status: "pending",
-                reference_id: String(row._id),
-                created_at: now,
-                updated_at: now,
-              });
-            }
-
-            // --- Deduct Stock (Always, regardless of stationEarnings calculation) ---
-            const fuelType = String(row.service_type || "").toLowerCase();
-            if (fuelType === "petrol" || fuelType === "diesel") {
-              const stockRecord = await ctx.db
-                .query("fuel_station_stock")
-                .withIndex("by_fuel_station_id", (q: any) => q.eq("fuel_station_id", station._id))
-                .filter((q) => q.eq(q.field("fuel_type"), fuelType))
-                .first();
-
-              if (stockRecord) {
-                const currentStock = Number(stockRecord.stock_litres || 0);
-                await ctx.db.patch(stockRecord._id, {
-                  stock_litres: Math.max(0, currentStock - Number(row.litres || 0)),
-                  updated_at: now,
-                });
-              }
-            }
-            // --------------------
-          }
-        }
-
-        // 3. Global Settlement Record
-        await ctx.db.insert("settlements", {
-          service_request_id: row._id,
-          worker_id: workerId as any,
-          fuel_station_id: fuelStationId as any,
-          settlement_date: now,
-          customer_amount: totalAmount,
-          fuel_cost: stationEarnings,
-          delivery_fee: (row.service_type === "petrol" || row.service_type === "diesel") ? 80 : 0,
-          platform_service_fee: Math.round(totalAmount * 0.05),
-          surge_fee: 0,
-          fuel_station_payout: stationEarnings,
-          worker_payout: workerEarnings,
-          platform_profit: totalAmount - workerEarnings - stationEarnings,
-          status: "pending_reconciliation",
-          created_at: now,
-          updated_at: now,
-        });
+        await applyCompletionSettlementIfNeeded(ctx, row, args);
       }
       return { ok: true };
     } catch (err: any) {
@@ -379,6 +407,10 @@ export const adminUpdateStatus = mutationGeneric({
         created_at: nowIso(),
       });
 
+      if (args.status === "Completed") {
+        await applyCompletionSettlementIfNeeded(ctx, row, args);
+      }
+
       return { ok: true };
     } catch (err: any) {
       console.error("adminUpdateStatus error:", err);
@@ -386,4 +418,3 @@ export const adminUpdateStatus = mutationGeneric({
     }
   },
 });
-
