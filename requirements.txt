@@ -1,0 +1,42 @@
+Project requirements (to run locally)
+
+1) Runtime
+- Node.js >= 20.9.0 (required by Next.js in this repo)
+- npm (bundled with Node.js)
+
+2) Dependencies
+- Install: npm install
+
+3) Environment variables
+- .env (SMTP/Razorpay/APP_URL/etc.)
+  - SMTP_HOST
+  - SMTP_PORT
+  - SMTP_USER
+  - SMTP_PASS
+  - SMTP_FROM
+  - APP_URL
+  - NEXT_PUBLIC_BUILDER_API_KEY (optional, only if using Builder)
+  - NEXT_PUBLIC_RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET (optional, only if using Razorpay)
+  - RAZORPAY_ACCOUNT_NUMBER (optional, only if using RazorpayX payouts)
+  - ENCRYPTION_KEY
+
+- .env.local (Convex + auth bootstrap)
+  - NEXT_PUBLIC_CONVEX_URL
+  - NEXT_PUBLIC_CONVEX_SITE_URL
+  - CONVEX_DEPLOYMENT (used by `npx convex dev`)
+  - CONVEX_DEPLOY_KEY (required for deploy/codegen)
+  - JWT_SECRET
+
+
+4) Services (as applicable)
+- Convex project/deployment configured for the above URLs/keys
+- SMTP provider credentials (if sending real emails)
+- Razorpay account + API keys (if using payments/payouts)
+
+5) Run commands
+- Dev server: npm run dev
+- Convex (local/dev sync): npx convex dev --once
+
+Optional (mobile build via Capacitor)
+- Android: Android Studio + Android SDK + JDK
+- iOS: macOS + Xcode (and CocoaPods if needed)

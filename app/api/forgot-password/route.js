@@ -3,6 +3,15 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { convexQuery, convexMutation } = require("../../lib/convexServer");
 
+function maskEmail(value) {
+  if (!value) return value;
+  const [user, domain] = String(value).split("@");
+  if (!domain) return "***";
+  const maskedUser =
+    user.length <= 2 ? `${user[0] || "*"}*` : `${user.slice(0, 2)}***${user.slice(-1)}`;
+  return `${maskedUser}@${domain}`;
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -45,9 +54,18 @@ export async function POST(request) {
       const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
       const smtpUser = process.env.SMTP_USER;
       const smtpPass = process.env.SMTP_PASS;
+      const debugSmtp = process.env.DEBUG_SMTP === "1";
 
       if (smtpHost && smtpPort && smtpUser && smtpPass) {
         try {
+          if (debugSmtp) {
+            console.log("[smtp] using real SMTP", {
+              host: smtpHost,
+              port: smtpPort,
+              user: maskEmail(smtpUser),
+              from: process.env.SMTP_FROM,
+            });
+          }
           const transporter = nodemailer.createTransport({
             host: smtpHost,
             port: smtpPort,
@@ -81,6 +99,15 @@ export async function POST(request) {
         }
       } else {
         try {
+          if (debugSmtp) {
+            console.log("[smtp] missing real SMTP env; falling back to Ethereal", {
+              host: smtpHost,
+              port: smtpPort,
+              user: smtpUser ? maskEmail(smtpUser) : undefined,
+              from: process.env.SMTP_FROM,
+              hasPass: Boolean(smtpPass),
+            });
+          }
           const testAccount = await nodemailer.createTestAccount();
           const transporter = nodemailer.createTransport({
             host: testAccount.smtp.host,
