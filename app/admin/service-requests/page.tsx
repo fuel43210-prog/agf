@@ -200,7 +200,7 @@ export default function AdminServiceRequestsPage() {
         <div style={{ marginBottom: "1rem" }}>
           <input
             type="text"
-            placeholder="Search requests by ID, vehicle, user, worker, phone, payment..."
+            placeholder="Search requests by ID, vehicle, user, Service Partner, phone, payment..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
