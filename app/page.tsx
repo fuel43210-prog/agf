@@ -308,7 +308,7 @@ export default function HomePage() {
             <h4 className="landing-footer-heading">Connect</h4>
             <div className="landing-social-icons">
               <a href="#" className="landing-social-icon" aria-label="Facebook">
-                <img src="/face.png" alt="Facebook" style={{ width: '40px', height: '40px' }} />
+                <img src="/face.png" alt="Facebook" style={{ width: '60px', height: '60px' }} />
               </a>
               <a href="#" className="landing-social-icon" aria-label="Twitter">
                 <img src="/twitter.png" alt="Twitter" style={{ width: '40px', height: '40px' }} />
