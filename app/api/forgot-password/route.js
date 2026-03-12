@@ -21,6 +21,16 @@ export async function POST(request) {
       return NextResponse.json({ error: "Email and role are required" }, { status: 400 });
     }
 
+    const debugSmtp = process.env.DEBUG_SMTP === "1";
+    const smtpDebug = debugSmtp
+      ? {
+          vercel_env: process.env.VERCEL_ENV,
+          vercel_git_sha: process.env.VERCEL_GIT_COMMIT_SHA
+            ? String(process.env.VERCEL_GIT_COMMIT_SHA).slice(0, 8)
+            : undefined,
+        }
+      : undefined;
+
     const normalizedRole = requestedRole.toLowerCase();
     const isWorkerRole = normalizedRole === "worker";
     const isUserRole =
@@ -54,7 +64,6 @@ export async function POST(request) {
       const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
       const smtpUser = process.env.SMTP_USER;
       const smtpPass = process.env.SMTP_PASS;
-      const debugSmtp = process.env.DEBUG_SMTP === "1";
 
       if (smtpHost && smtpPort && smtpUser && smtpPass) {
         try {
@@ -65,6 +74,13 @@ export async function POST(request) {
               user: maskEmail(smtpUser),
               from: process.env.SMTP_FROM,
             });
+            smtpDebug.smtp = {
+              mode: "real",
+              host: smtpHost,
+              port: smtpPort,
+              user: maskEmail(smtpUser),
+              from: process.env.SMTP_FROM || smtpUser,
+            };
           }
           const transporter = nodemailer.createTransport({
             host: smtpHost,
@@ -107,6 +123,14 @@ export async function POST(request) {
               from: process.env.SMTP_FROM,
               hasPass: Boolean(smtpPass),
             });
+            smtpDebug.smtp = {
+              mode: "ethereal_fallback",
+              host: smtpHost,
+              port: smtpPort,
+              user: smtpUser ? maskEmail(smtpUser) : undefined,
+              from: process.env.SMTP_FROM,
+              hasPass: Boolean(smtpPass),
+            };
           }
           const testAccount = await nodemailer.createTestAccount();
           const transporter = nodemailer.createTransport({
@@ -130,7 +154,7 @@ export async function POST(request) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(debugSmtp ? { success: true, smtp_debug: smtpDebug } : { success: true });
   } catch (err) {
     console.error("Forgot password error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
