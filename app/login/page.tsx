@@ -117,7 +117,7 @@ export default function LoginPage() {
               <span className="login-role-icon">
                 <img className="login-role-avatar" src="/worker-avatar.png" alt="Worker" />
               </span>
-              <span>Worker</span>
+              <span>Service Partner</span>
             </button>
             <button
               type="button"

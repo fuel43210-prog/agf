@@ -134,7 +134,7 @@ export default function SignUpPage() {
               <span className="signup-role-card-icon">
                 <img className="signup-role-avatar" src="/worker-avatar.png" alt="Worker" />
               </span>
-              <span className="signup-role-card-title">Worker</span>
+              <span className="signup-role-card-title">Service Partner</span>
               <span className="signup-role-card-desc">Provide roadside assistance</span>
             </button>
           </div>
