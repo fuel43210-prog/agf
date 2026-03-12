@@ -4581,9 +4581,10 @@ button {
 }
 
 .admin-modal--wide {
-  max-width: 620px;
-  width: 86%;
+  width: min(92vw, 820px);
   padding: 2rem;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
 }
 
 .admin-modal h2 {
@@ -4657,10 +4658,22 @@ button {
   }
 
   .admin-modal--wide {
-    width: 100%;
+    width: calc(100vw - 2rem);
     padding: 1.5rem;
   }
 
+  .admin-modal-split {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .admin-modal-split > .admin-modal-col + .admin-modal-col {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
   .admin-modal-split {
     flex-direction: column;
     gap: 1.25rem;
