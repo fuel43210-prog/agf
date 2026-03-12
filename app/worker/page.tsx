@@ -790,7 +790,7 @@ export default function WorkerDashboardPage() {
           <span className="back-link">
             Home
           </span>
-          <span>/ worker-mission-control</span>
+          <span>/ Service Partner-mission-control</span>
         </div>
 
         <section className="worker-welcome-section" style={{ position: 'relative' }}>
