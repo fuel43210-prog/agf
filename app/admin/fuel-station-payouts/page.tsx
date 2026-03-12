@@ -128,7 +128,7 @@ export default function PayoutsPage() {
                     Overview
                 </Link>
                 <Link href="/admin/workers" className={`admin-tab ${activeTab === "Workers" ? "admin-tab--active" : ""}`}>
-                    Workers
+                    Service Partners
                 </Link>
                 <Link href="/admin/users" className={`admin-tab ${activeTab === "Users" ? "admin-tab--active" : ""}`}>
                     Users
@@ -146,7 +146,7 @@ export default function PayoutsPage() {
                     COD Controls
                 </Link>
                 <Link href="/admin/payouts" className={`admin-tab ${activeTab === "Payouts" ? "admin-tab--active" : ""}`}>
-                    Worker Payouts
+                    Service Partner Payouts
                 </Link>
                 <Link href="/admin/fuel-station-payouts" className={`admin-tab ${activeTab === "Station Payouts" ? "admin-tab--active" : ""}`}>
                     Station Payouts

@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
               className={`forgot-role-btn ${role === "Worker" ? "active" : ""}`}
               onClick={() => setRole("Worker")}
             >
-              Worker
+              Service Partner
             </button>
           </div>
           <label className="forgot-label">Email Address</label>

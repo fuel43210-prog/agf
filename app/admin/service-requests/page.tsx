@@ -156,7 +156,7 @@ export default function AdminServiceRequestsPage() {
           Overview
         </Link>
         <Link href="/admin/workers" className={`admin-tab ${activeTab === "Workers" ? "admin-tab--active" : ""}`}>
-          Workers
+          Service Partners
         </Link>
         <Link href="/admin/users" className={`admin-tab ${activeTab === "Users" ? "admin-tab--active" : ""}`}>
           Users
@@ -174,7 +174,7 @@ export default function AdminServiceRequestsPage() {
           COD Controls
         </Link>
         <Link href="/admin/payouts" className={`admin-tab ${activeTab === "Payouts" ? "admin-tab--active" : ""}`}>
-          Worker Payouts
+          Service Partner Payouts
         </Link>
         <Link href="/admin/fuel-station-payouts" className={`admin-tab ${activeTab === "Station Payouts" ? "admin-tab--active" : ""}`}>
           Station Payouts
@@ -354,9 +354,9 @@ export default function AdminServiceRequestsPage() {
                   </div>
                 </div>
                 <div className="admin-modal-col">
-                  <div className="admin-modal-section-title">Worker Info</div>
+                  <div className="admin-modal-section-title">Service Partner Info</div>
                   <div className="admin-modal-row">
-                    <label>Assigned Worker</label>
+                    <label>Assigned Service Partner</label>
                     <div>
                       {selectedRequest.worker_first_name && selectedRequest.worker_last_name
                         ? `${selectedRequest.worker_first_name} ${selectedRequest.worker_last_name}`
@@ -364,15 +364,15 @@ export default function AdminServiceRequestsPage() {
                     </div>
                   </div>
                   <div className="admin-modal-row">
-                    <label>Worker Status</label>
+                    <label>Service Partner Status</label>
                     <div>{selectedRequest.worker_status || "—"}</div>
                   </div>
                   <div className="admin-modal-row">
-                    <label>Worker Phone</label>
+                    <label>Service Partner Phone</label>
                     <div>{selectedRequest.worker_phone || "—"}</div>
                   </div>
                   <div className="admin-modal-row">
-                    <label>Worker Distance</label>
+                    <label>Service Partner Distance</label>
                     <div>
                       {(() => {
                         const d = distanceKm(

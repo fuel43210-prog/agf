@@ -20,12 +20,12 @@ export default function WorkerLayout({
       if (raw) {
         const data = JSON.parse(raw);
         setUser({
-          first_name: data.first_name || "Worker",
+          first_name: data.first_name || "Service Partner",
           last_name: data.last_name || "",
         });
       }
     } catch (_) {
-      setUser({ first_name: "Worker", last_name: "" });
+      setUser({ first_name: "Service Partner", last_name: "" });
     }
   }, []);
 
@@ -37,7 +37,7 @@ export default function WorkerLayout({
         <div className="worker-header-inner">
           <Link href="/worker" className="worker-logo">
             <img src="/favicon.ico" alt="AGF Logo" style={{ width: '80px', marginRight: '8px' }} />
-            <span className="worker-logo-text">AGF Worker</span>
+            <span className="worker-logo-text">AGF Service Partner</span>
           </Link>
           <div className="worker-header-actions">
           </div>

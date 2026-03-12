@@ -107,7 +107,7 @@ export default function HomePage() {
               { icon: "⛽", title: "Emergency Fuel Delivery", desc: "Get fuel delivered to your location within minutes, even in remote forest areas." },
               { icon: <img src="/tow-truck.png" alt="Tow Truck" style={{ width: "40px", height: "40px", objectFit: "contain" }} />, title: "Towing Services", desc: "Professional towing via crane to safely transport your vehicle." },
               { icon: "🔧", title: "Mechanic Services", desc: "Professional mechanics dispatched to your location for on-site vehicle repairs." },
-              { icon: "📍", title: "Real-Time Tracking", desc: "Track your service request and worker location in real-time with live GPS updates." },
+              { icon: "📍", title: "Real-Time Tracking", desc: "Track your service request and service partner location in real-time with live GPS updates." },
               { icon: "🔑", title: "Key Lockout Service", desc: "Fast and damage-free vehicle unlocking service when you leave your keys inside.", comingSoon: true },
               { icon: "📅", title: "Maintenance", desc: "Book a mechanic for basic at-home services like oil changes and inspections.", comingSoon: true }
             ].map((service, index) => (
@@ -161,7 +161,7 @@ export default function HomePage() {
           <div className="landing-steps">
             {[
               { icon: "📱", num: "01", title: "Request Service", desc: "Open the app and select the service you need. Share your location instantly." },
-              { icon: "🧭", num: "02", title: "Worker Assigned", desc: "The nearest available worker is assigned to your request with real-time tracking." },
+              { icon: "🧭", num: "02", title: "Service Partner Assigned", desc: "The nearest available service partner is assigned to your request with real-time tracking." },
               { icon: "✅", num: "03", title: "Service Delivered", desc: "Receive professional service at your location with transparent updates." }
             ].map((step, index) => (
               <motion.div
@@ -203,7 +203,7 @@ export default function HomePage() {
             </p>
             <div className="landing-features">
               {[
-                { icon: "☁️", title: "Cloud Technology", desc: "Real-time updates on fuel availability and service worker locations." },
+              { icon: "☁️", title: "Cloud Technology", desc: "Real-time updates on fuel availability and service partner locations." },
                 { icon: "📈", title: "Stock Management", desc: "Real-time stock management and tracking for guaranteed availability." },
                 { icon: "🔄", title: "Transparent Updates", desc: "Get instant notifications and real-time updates on your request status." },
                 { icon: "👤", title: "User-Friendly Interface", desc: "Intuitive design makes requesting services quick and easy." }

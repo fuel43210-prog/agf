@@ -115,7 +115,7 @@ export default function LoginPage() {
               onClick={() => setRole("Worker")}
             >
               <span className="login-role-icon">
-                <img className="login-role-avatar" src="/worker-avatar.png" alt="Worker" />
+                <img className="login-role-avatar" src="/worker-avatar.png" alt="Service Partner" />
               </span>
               <span>Service Partner</span>
             </button>

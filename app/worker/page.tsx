@@ -588,7 +588,7 @@ export default function WorkerDashboardPage() {
 
   const cancelTask = async (requestId: string) => {
     if (!worker?.id) return;
-    const confirmed = await showConfirm("Are you sure you want to cancel this job? This will make it available for other workers.");
+    const confirmed = await showConfirm("Are you sure you want to cancel this job? This will make it available for other service partners.");
     if (!confirmed) return;
 
     setLoading(true);
@@ -667,7 +667,7 @@ export default function WorkerDashboardPage() {
   const handleDocUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!worker?.id) {
-      showToast("Worker session is missing. Please log out and log in again.", "error");
+      showToast("Service partner session is missing. Please log out and log in again.", "error");
       return;
     }
 
@@ -802,10 +802,10 @@ export default function WorkerDashboardPage() {
           >
             Logout
           </button>
-          <div className="worker-welcome-logo">AGF Worker</div>
-          <h1 className="worker-welcome-title">Hello, {worker?.first_name || "Worker"}!</h1>
+          <div className="worker-welcome-logo">AGF Service Partner</div>
+          <h1 className="worker-welcome-title">Hello, {worker?.first_name || "Service Partner"}!</h1>
           <p className="worker-welcome-subtitle">
-            Specialization: <span className="premium-accent">{worker?.service_type || "Worker"}</span>.
+            Specialization: <span className="premium-accent">{worker?.service_type || "Service Partner"}</span>.
             {activeTasks.length > 0 ? (
               <span> You have <span className="premium-success">{activeTasks.length} active tasks</span>.</span>
             ) : (

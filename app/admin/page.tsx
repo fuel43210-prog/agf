@@ -376,7 +376,7 @@ function AdminDashboardContent() {
   const heatmapActions: Record<string, string> = {
     cancellations: "Pre-position crews near repeat cancellation clusters and tighten dispatch SLAs.",
     failures: "Audit COD eligibility and station coverage in repeated failure pockets.",
-    connectivity: "Reroute workers around low-signal zones and enable offline handoff playbooks.",
+    connectivity: "Reroute service partners around low-signal zones and enable offline handoff playbooks.",
   };
   const activeHeatAction = heatmapActions[heatmapLayer];
 
@@ -399,7 +399,7 @@ function AdminDashboardContent() {
 
   const activityIcon = (type: string) => {
     const workerIcon = (
-      <img className="admin-activity-avatar" src="/worker-avatar.png" alt="Worker" />
+      <img className="admin-activity-avatar" src="/worker-avatar.png" alt="Service Partner" />
     );
     const userIcon = (
       <img className="admin-activity-avatar" src="/user-avatar.png" alt="User" />
@@ -430,7 +430,7 @@ function AdminDashboardContent() {
   const downloadCsv = () => {
     if (!financials.workerFinancials.length) return;
 
-    const headers = ["Worker ID", "Name", "Service Type", "Online Earnings", "Floating Earnings", "Current Float"];
+    const headers = ["Service Partner ID", "Name", "Service Type", "Online Earnings", "Floating Earnings", "Current Float"];
     const rows = financials.workerFinancials.map((w) => [
       w.id,
       `"${w.first_name} ${w.last_name}"`,
@@ -465,7 +465,7 @@ function AdminDashboardContent() {
           Overview
         </Link>
         <Link href="/admin/workers" className={`admin-tab ${activeTab === "Workers" ? "admin-tab--active" : ""}`}>
-          Workers
+          Service Partners
         </Link>
         <Link href="/admin/users" className={`admin-tab ${activeTab === "Users" ? "admin-tab--active" : ""}`}>
           Users
@@ -483,7 +483,7 @@ function AdminDashboardContent() {
           COD Controls
         </Link>
         <Link href="/admin/payouts" className={`admin-tab ${activeTab === "Payouts" ? "admin-tab--active" : ""}`}>
-          Worker Payouts
+          Service Partner Payouts
         </Link>
         <Link href="/admin/fuel-station-payouts" className={`admin-tab ${activeTab === "Station Payouts" ? "admin-tab--active" : ""}`}>
           Station Payouts
@@ -497,10 +497,10 @@ function AdminDashboardContent() {
             <div className="admin-section-header">
               <div>
                 <h2>Live Operations Map</h2>
-                <p>Real-time tracking of all active workers and service requests.</p>
+                <p>Real-time tracking of all active service partners and service requests.</p>
               </div>
               <div className="admin-map-controls">
-                <span className="admin-pill">• {s.activeWorkers} Workers Active</span>
+                <span className="admin-pill">• {s.activeWorkers} Service Partners Active</span>
                 <button type="button" className="admin-btn admin-btn-secondary" onClick={refreshActiveWorkers}>
                   Refresh
                 </button>
@@ -515,10 +515,10 @@ function AdminDashboardContent() {
                 />
               </div>
               <div className="admin-workers-panel">
-                <h3>Active Workers ({s.activeWorkersList.length})</h3>
+                <h3>Active Service Partners ({s.activeWorkersList.length})</h3>
                 <ul className="admin-workers-list">
                   {s.activeWorkersList.length === 0 ? (
-                    <li className="admin-worker-item">No workers yet</li>
+                    <li className="admin-worker-item">No service partners yet</li>
                   ) : (
                     s.activeWorkersList.map((w) => (
                       <li key={w.id} className="admin-worker-item">
@@ -581,7 +581,7 @@ function AdminDashboardContent() {
               <span className="admin-kpi-meta">registered</span>
             </div>
             <div className="admin-kpi-card">
-              <span className="admin-kpi-label">Active Workers</span>
+              <span className="admin-kpi-label">Active Service Partners</span>
               <span className="admin-kpi-value">{s.activeWorkers}</span>
               <span className="admin-kpi-meta">of {s.totalWorkers} total</span>
             </div>
@@ -736,15 +736,15 @@ function AdminDashboardContent() {
               <div className="admin-kpi-card">
                 <span className="admin-kpi-label">Floating Cash</span>
                 <span className="admin-kpi-value" style={{ color: "#f97316" }}>{financials.codEarnings.toLocaleString()}</span>
-                <span className="admin-kpi-meta">Collected by workers</span>
+            <span className="admin-kpi-meta">Collected by service partners</span>
               </div>
             </div>
 
             <div className="admin-chart-card" style={{ height: "auto", minHeight: "300px" }}>
               <div className="admin-chart-header">
                 <div>
-                  <h3>Worker Financials</h3>
-                  <p>Earnings breakdown per worker for the selected period.</p>
+                  <h3>Service Partner Financials</h3>
+                  <p>Earnings breakdown per service partner for the selected period.</p>
                 </div>
                 <button type="button" className="admin-btn admin-btn-secondary" onClick={downloadCsv} disabled={!financials.workerFinancials.length}>
                   Download CSV
@@ -755,7 +755,7 @@ function AdminDashboardContent() {
                   <table className="admin-requests-table" style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
                     <thead style={{ position: "sticky", top: 0, background: "#0f172a", zIndex: 1, boxShadow: "0 1px 0 #334155" }}>
                       <tr style={{ color: "#94a3b8", fontSize: "0.875rem" }}>
-                        <th style={{ padding: "0.75rem" }}>Worker</th>
+                        <th style={{ padding: "0.75rem" }}>Service Partner</th>
                         <th style={{ padding: "0.75rem" }}>Service</th>
                         <th style={{ padding: "0.75rem", textAlign: "right" }}>Online Earnings</th>
                         <th style={{ padding: "0.75rem", textAlign: "right" }}>Floating Earnings</th>
@@ -791,7 +791,7 @@ function AdminDashboardContent() {
                       {financials.workerFinancials.length === 0 && (
                         <tr>
                           <td colSpan={5} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
-                            No worker data for this period
+                            No service partner data for this period
                           </td>
                         </tr>
                       )}
@@ -915,7 +915,7 @@ function AdminDashboardContent() {
               <div className="admin-chart-card admin-chart-card--utilization">
                 <div className="admin-chart-header">
                   <div>
-                    <h3>Worker Utilization</h3>
+                    <h3>Service Partner Utilization</h3>
                     <p>Live distribution of workforce states.</p>
                   </div>
                   <span className="admin-chart-meta">{analytics.utilizationPercent}% busy</span>
@@ -946,7 +946,7 @@ function AdminDashboardContent() {
                   </div>
                   <div className="admin-utilization-legend">
                     {analytics.workerUtilization.length === 0 ? (
-                      <p className="admin-placeholder">No worker data</p>
+                      <p className="admin-placeholder">No service partner data</p>
                     ) : (
                       analytics.workerUtilization.map((entry) => (
                         <div key={entry.status} className="admin-utilization-row">
@@ -1054,7 +1054,7 @@ function AdminDashboardContent() {
             <div className="admin-section-header">
               <div>
                 <h2>💰 Settlement Algorithm (Fuel)</h2>
-                <p>Live calculator showing how payments are distributed between customer, fuel station, worker, and platform for fuel services.</p>
+                <p>Live calculator showing how payments are distributed between customer, fuel station, service partner, and platform for fuel services.</p>
               </div>
             </div>
             <SettlementCalculator />
@@ -1066,8 +1066,8 @@ function AdminDashboardContent() {
         <section className="admin-section">
           <div className="admin-section-header">
             <div>
-              <h2>Worker Payouts & Settlements</h2>
-              <p>Manage worker balances and record settlements.</p>
+              <h2>Service Partner Payouts & Settlements</h2>
+              <p>Manage service partner balances and record settlements.</p>
             </div>
             <button className="admin-btn admin-btn-secondary" onClick={loadPayoutsData}>Refresh</button>
           </div>
@@ -1077,7 +1077,7 @@ function AdminDashboardContent() {
               <table className="admin-requests-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #334155", color: "#94a3b8", fontSize: "0.85rem", textAlign: "left" }}>
-                    <th style={{ padding: "1rem" }}>Worker</th>
+                    <th style={{ padding: "1rem" }}>Service Partner</th>
                     <th style={{ padding: "1rem" }}>Service</th>
                     <th style={{ padding: "1rem", textAlign: "right" }}>Lifetime Earnings</th>
                     <th style={{ padding: "1rem", textAlign: "right" }}>Total Paid</th>
@@ -1147,7 +1147,7 @@ function AdminDashboardContent() {
                   })}
                   {payoutsData.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>No worker data available.</td>
+                      <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>No service partner data available.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1575,7 +1575,7 @@ function SettlementCalculator() {
             <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>100% fuel cost</div>
           </div>
           <div style={{ padding: '0.75rem', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 600, marginBottom: '0.25rem' }}>👷 Worker</div>
+            <div style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 600, marginBottom: '0.25rem' }}>👷 Service Partner</div>
             <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4ade80' }}>{workerTotal}</div>
             <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Base + distance + bonuses</div>
           </div>
@@ -1603,7 +1603,7 @@ function SettlementCalculator() {
 
         {/* Worker Payout Breakdown */}
         <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', fontSize: '0.72rem', color: '#64748b' }}>
-          <strong style={{ color: '#94a3b8' }}>Worker breakdown:</strong> Base {basePay} + Distance {distancePay} ({distanceKm}km × {10})
+          <strong style={{ color: '#94a3b8' }}>Service partner breakdown:</strong> Base {basePay} + Distance {distancePay} ({distanceKm}km × {10})
           {workerSurgeBonus > 0 && <> + Surge {workerSurgeBonus}</>}
           {peakHourBonus > 0 && <> + Peak {peakHourBonus}</>}
           {longDistanceBonus > 0 && <> + Long-dist {longDistanceBonus}</>}

@@ -218,7 +218,7 @@ export default function PhoneWalkthrough() {
                             style={{ position: 'absolute', top: 20, left: 10, right: 10, background: 'rgba(15, 23, 42, 0.9)', padding: '12px 15px', borderRadius: '12px', border: '1px solid rgba(34, 197, 94, 0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 4, backdropFilter: 'blur(5px)' }}
                         >
                             <div>
-                                <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '2px' }}>Worker arriving in</div>
+                                <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '2px' }}>Service partner arriving in</div>
                                 <motion.div
                                     initial={{ opacity: 1 }}
                                     animate={{ opacity: [1, 0.5, 1] }}

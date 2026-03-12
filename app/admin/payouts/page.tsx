@@ -43,7 +43,7 @@ export default function AdminPayoutsPage() {
                 // We'll fetch verification status in a real implementation or assume it's in the profile
             })));
         } catch (err) {
-            showToast("Failed to load workers", "error");
+            showToast("Failed to load service partners", "error");
         } finally {
             setLoading(false);
         }
@@ -52,11 +52,11 @@ export default function AdminPayoutsPage() {
     const handleSettleAll = async () => {
         const eligibleCount = workers.filter(w => w.pending_balance > 0).length;
         if (eligibleCount === 0) {
-            showToast("No workers with pending balance.", "info");
+        showToast("No service partners with pending balance.", "info");
             return;
         }
 
-        const confirmed = await showConfirm(`Are you sure you want to trigger payouts for ${eligibleCount} workers? This will initiate bank transfers via Razorpay.`);
+        const confirmed = await showConfirm(`Are you sure you want to trigger payouts for ${eligibleCount} service partners? This will initiate bank transfers via Razorpay.`);
         if (!confirmed) return;
 
         setSettling(true);
@@ -117,8 +117,8 @@ export default function AdminPayoutsPage() {
         <div className="admin-dashboard">
             <div className="admin-dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <h1>Worker Payouts</h1>
-                    <p>Process pending settlements for verified workers.</p>
+                    <h1>Service Partner Payouts</h1>
+                    <p>Process pending settlements for verified service partners.</p>
                 </div>
                 <button
                     onClick={handleSettleAll}
@@ -126,7 +126,7 @@ export default function AdminPayoutsPage() {
                     className="admin-btn-save"
                     style={{ background: '#22c55e', padding: '0.75rem 1.5rem', borderRadius: '8px' }}
                 >
-                    {settling ? "Processing..." : "Settle All Ready Workers"}
+                    {settling ? "Processing..." : "Settle All Ready Service Partners"}
                 </button>
             </div>
 
@@ -135,7 +135,7 @@ export default function AdminPayoutsPage() {
                     Overview
                 </Link>
                 <Link href="/admin/workers" className={`admin-tab ${activeTab === "Workers" ? "admin-tab--active" : ""}`}>
-                    Workers
+                    Service Partners
                 </Link>
                 <Link href="/admin/users" className={`admin-tab ${activeTab === "Users" ? "admin-tab--active" : ""}`}>
                     Users
@@ -153,7 +153,7 @@ export default function AdminPayoutsPage() {
                     COD Controls
                 </Link>
                 <Link href="/admin/payouts" className={`admin-tab ${activeTab === "Payouts" ? "admin-tab--active" : ""}`}>
-                    Worker Payouts
+                    Service Partner Payouts
                 </Link>
                 <Link href="/admin/fuel-station-payouts" className={`admin-tab ${activeTab === "Station Payouts" ? "admin-tab--active" : ""}`}>
                     Station Payouts
@@ -185,12 +185,12 @@ export default function AdminPayoutsPage() {
             )}
 
             <section className="admin-section">
-                {loading ? <p>Loading workers...</p> : (
+                {loading ? <p>Loading service partners...</p> : (
                     <div className="admin-table-wrap">
                         <table className="admin-table">
                             <thead>
                                 <tr>
-                                    <th>Worker</th>
+                                    <th>Service Partner</th>
                                     <th>Pending Balance</th>
                                     <th>Bank Status</th>
                                     <th>Last Payout</th>

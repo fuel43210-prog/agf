@@ -132,7 +132,7 @@ export default function SignUpPage() {
               onClick={() => setRole("Worker")}
             >
               <span className="signup-role-card-icon">
-                <img className="signup-role-avatar" src="/worker-avatar.png" alt="Worker" />
+                <img className="signup-role-avatar" src="/worker-avatar.png" alt="Service Partner" />
               </span>
               <span className="signup-role-card-title">Service Partner</span>
               <span className="signup-role-card-desc">Provide roadside assistance</span>

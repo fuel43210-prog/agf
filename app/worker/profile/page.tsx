@@ -182,7 +182,7 @@ export default function WorkerProfilePage() {
     ];
 
     if (loading) return <div className="worker-loading">Loading Profile...</div>;
-    if (!worker) return <div className="worker-error">Worker not found. Please log in again.</div>;
+    if (!worker) return <div className="worker-error">Service partner not found. Please log in again.</div>;
 
     return (
         <div className="worker-profile-container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 2rem' }}>

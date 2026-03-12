@@ -356,7 +356,7 @@ export default function AdminMap({
           <Marker key={`w-${worker.id}`} position={[worker.latitude, worker.longitude]} icon={WorkerIcon}>
             <Popup>
               <div className="leaflet-popup-premium-content">
-                <strong>Worker: {worker.first_name} {worker.last_name}</strong><br />
+                <strong>Service Partner: {worker.first_name} {worker.last_name}</strong><br />
                 <span className="premium-success">Status: {worker.status}</span><br />
                 <span>Role: {worker.service_type}</span>
               </div>

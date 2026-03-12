@@ -33,14 +33,14 @@ export default function TermsOfService() {
                 <section style={{ marginBottom: "2rem" }}>
                     <h2 style={{ color: "#ffffff", fontSize: "1.5rem", marginBottom: "1rem" }}>4. Service Fees and Payments</h2>
                     <p style={{ color: "#e5e7eb", lineHeight: "1.6" }}>
-                        Standard service fees apply to all requests. Payments are processed securely. Cancellation fees may apply if a worker has already been dispatched to your location.
+                        Standard service fees apply to all requests. Payments are processed securely. Cancellation fees may apply if a service partner has already been dispatched to your location.
                     </p>
                 </section>
 
                 <section style={{ marginBottom: "2rem" }}>
                     <h2 style={{ color: "#ffffff", fontSize: "1.5rem", marginBottom: "1rem" }}>5. Limitation of Liability</h2>
                     <p style={{ color: "#e5e7eb", lineHeight: "1.6" }}>
-                        AGF is not liable for any indirect, incidental, or consequential damages resulting from the use of our services or the actions of third-party workers.
+                        AGF is not liable for any indirect, incidental, or consequential damages resulting from the use of our services or the actions of third-party service partners.
                     </p>
                 </section>
 

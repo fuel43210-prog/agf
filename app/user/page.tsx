@@ -228,10 +228,10 @@ export default function UserDashboardPage() {
       const prev = prevRequestsRef.current.find(p => p.id === req.id);
       if (prev && prev.status !== req.status) {
         if (req.status === "Assigned") {
-          showToast(`Worker Assigned! Your request for ${req.service_type} is accepted.`, "success");
+          showToast(`Service Partner Assigned! Your request for ${req.service_type} is accepted.`, "success");
           setSummaryTab("Active Requests");
         } else if (req.status === "In Progress") {
-          showToast("Worker is on the way! Your service is now In Progress.", "info");
+          showToast("Service partner is on the way! Your service is now In Progress.", "info");
         } else if (req.status === "Completed") {
           showToast("Service Completed! Thank you for using AGF.", "success");
         }
@@ -1016,7 +1016,7 @@ export default function UserDashboardPage() {
           <div className="user-section-header">
             <div>
               <h2 className="user-section-title">Live Tracking</h2>
-              <p className="user-section-subtitle">Track your service workers in real-time.</p>
+              <p className="user-section-subtitle">Track your service partners in real-time.</p>
             </div>
             <div className="user-map-controls">
               <span className="user-live-pill">
@@ -1028,14 +1028,14 @@ export default function UserDashboardPage() {
             <div className="user-map-container">
               <UserMap assignedWorker={assignedWorker} onUserPositionChange={handleUserPositionChange} />
               <div className="user-map-legend">
-                <span><span className="user-legend-dot user-legend-workers" /> Workers</span>
+                <span><span className="user-legend-dot user-legend-workers" /> Service Partners</span>
                 <span><span className="user-legend-dot user-legend-you" /> Your Location</span>
               </div>
             </div>
             <div className="user-workers-panel">
               {activeAssignedRequest && assignedWorker && (
                 <div className="user-assigned-worker-card">
-                  <div className="user-assigned-worker-title">Assigned Worker</div>
+                  <div className="user-assigned-worker-title">Assigned Service Partner</div>
                   <div className="user-assigned-worker-row">
                     <span className="user-assigned-worker-label">Name</span>
                     <span className="user-assigned-worker-value">
@@ -1062,7 +1062,7 @@ export default function UserDashboardPage() {
                   </div>
                 </div>
               )}
-              <h3>Active Workers ({workers.length})</h3>
+              <h3>Active Service Partners ({workers.length})</h3>
               {workersLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <div className="skeleton" style={{ width: '80%' }}></div>
@@ -1070,7 +1070,7 @@ export default function UserDashboardPage() {
                   <div className="skeleton" style={{ width: '70%' }}></div>
                 </div>
               ) : workers.length === 0 ? (
-                <p className="user-workers-empty">No active workers nearby</p>
+                <p className="user-workers-empty">No active service partners nearby</p>
               ) : (
                 <ul className="user-workers-list">
                   {workers.map((w, index) => (
@@ -1442,9 +1442,9 @@ export default function UserDashboardPage() {
                           color: '#94a3b8'
                         }}>
                           {requestForm.service_type === 'petrol' || requestForm.service_type === 'diesel' ? (
-                            <>💡 <strong style={{ color: '#4ade80' }}>100% fuel cost</strong> goes to fuel station • Worker gets fair pay with bonuses • Platform earns from service fees</>
+                            <>💡 <strong style={{ color: '#4ade80' }}>100% fuel cost</strong> goes to fuel station • Service partner gets fair pay with bonuses • Platform earns from service fees</>
                           ) : (
-                            <>💡 <strong style={{ color: '#4ade80' }}>Service Charge:</strong> This is a booking fee. Additional charges will be applied by the worker according to the issue of complexity.</>
+                            <>💡 <strong style={{ color: '#4ade80' }}>Service Charge:</strong> This is a booking fee. Additional charges will be applied by the service partner according to the issue of complexity.</>
                           )}
                         </div>
 
@@ -1870,7 +1870,7 @@ export default function UserDashboardPage() {
                                       marginTop: '4px'
                                     }}
                                   >
-                                    Rate Worker
+                                    Rate Service Partner
                                   </button>
                                 )}
                               </div>

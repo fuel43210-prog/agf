@@ -57,13 +57,13 @@ export default function AdminWorkersPage() {
   const loadWorkers = () => {
     fetch("/api/admin/workers")
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to load workers");
+        if (!res.ok) throw new Error("Failed to load service partners");
         return res.json();
       })
       .then((data) =>
         setWorkers((Array.isArray(data) ? data : []).filter((w) => !isInvalidWorkerId(w?.id)))
       )
-      .catch((err) => setError(err.message || "Could not load workers."));
+      .catch((err) => setError(err.message || "Could not load service partners."));
   };
 
   useEffect(() => {
@@ -177,7 +177,7 @@ export default function AdminWorkersPage() {
 
   const handleCollectCash = async (workerId: number | string) => {
     if (isInvalidWorkerId(workerId)) return;
-    const confirmed = await showConfirm("Are you sure you have collected all cash from this worker? This will reset their floater cash to 0 and unlock their status if it was locked.");
+    const confirmed = await showConfirm("Are you sure you have collected all cash from this service partner? This will reset their floater cash to 0 and unlock their status if it was locked.");
     if (!confirmed) return;
 
     fetch("/api/admin/workers/collect-cash", {
@@ -212,7 +212,7 @@ export default function AdminWorkersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to reset verification");
 
-      showToast("Verification reset. Worker can now upload new documents.", "success");
+      showToast("Verification reset. Service partner can now upload new documents.", "success");
       setEditWorker(null);
       loadWorkers();
     } catch (err: any) {
@@ -251,15 +251,15 @@ export default function AdminWorkersPage() {
   return (
     <div className="admin-dashboard">
       <div className="admin-dashboard-header">
-        <h1>Workers</h1>
-        <p>Manage workers and their status.</p>
+        <h1>Service Partners</h1>
+        <p>Manage service partners and their status.</p>
       </div>
       <nav className="admin-tabs">
         <Link href="/admin" className={`admin-tab ${activeTab === "Overview" ? "admin-tab--active" : ""}`}>
           Overview
         </Link>
         <Link href="/admin/workers" className={`admin-tab ${activeTab === "Workers" ? "admin-tab--active" : ""}`}>
-          Workers
+          Service Partners
         </Link>
         <Link href="/admin/users" className={`admin-tab ${activeTab === "Users" ? "admin-tab--active" : ""}`}>
           Users
@@ -277,7 +277,7 @@ export default function AdminWorkersPage() {
           COD Controls
         </Link>
         <Link href="/admin/payouts" className={`admin-tab ${activeTab === "Payouts" ? "admin-tab--active" : ""}`}>
-          Worker Payouts
+          Service Partner Payouts
         </Link>
         <Link href="/admin/fuel-station-payouts" className={`admin-tab ${activeTab === "Station Payouts" ? "admin-tab--active" : ""}`}>
           Station Payouts
@@ -287,7 +287,7 @@ export default function AdminWorkersPage() {
         <div style={{ marginBottom: "1rem" }}>
           <input
             type="text"
-            placeholder="Search workers by ID, name, email, phone, status..."
+            placeholder="Search service partners by ID, name, email, phone, status..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -301,10 +301,10 @@ export default function AdminWorkersPage() {
             }}
           />
         </div>
-        {loading && <p className="admin-loading">Loading workers...</p>}
+        {loading && <p className="admin-loading">Loading service partners...</p>}
         {error && <p className="admin-table-error">{error}</p>}
         {!loading && filteredWorkers.length === 0 && !error && (
-          <p className="admin-table-empty">No workers yet. Workers will appear here when added.</p>
+          <p className="admin-table-empty">No service partners yet. Service partners will appear here when added.</p>
         )}
         {!loading && filteredWorkers.length > 0 && (
           <div className="admin-table-wrap">
@@ -393,7 +393,7 @@ export default function AdminWorkersPage() {
       {editWorker && (
         <div className="admin-modal-overlay" onClick={closeEdit}>
           <div className="admin-modal" style={{ maxWidth: '900px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
-            <h2>Edit worker</h2>
+            <h2>Edit Service Partner</h2>
             <form onSubmit={handleEditSubmit} className="admin-modal-form">
               <div style={{ display: 'flex', gap: '2rem' }}>
                 {/* Left Column: Worker Details */}
@@ -450,7 +450,7 @@ export default function AdminWorkersPage() {
                         onChange={(e) => setEditForm((p) => ({ ...p, status_locked: e.target.checked }))}
                         style={{ width: 'auto', cursor: 'pointer' }}
                       />
-                      <label htmlFor="status_locked" style={{ margin: 0, fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', color: '#cbd5f5' }}>Lock Status (Worker cannot change it)</label>
+                      <label htmlFor="status_locked" style={{ margin: 0, fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', color: '#cbd5f5' }}>Lock Status (Service partner cannot change it)</label>
                     </div>
                     <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
                       <input
@@ -651,4 +651,3 @@ export default function AdminWorkersPage() {
     </div>
   );
 }
-
