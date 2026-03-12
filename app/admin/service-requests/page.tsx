@@ -286,14 +286,14 @@ export default function AdminServiceRequestsPage() {
           onClick={() => setSelectedRequest(null)}
         >
           <div
-            className="admin-modal"
+            className="admin-modal admin-modal--wide"
             role="dialog"
             aria-labelledby="admin-request-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="admin-request-modal-title">Request Progress</h2>
             <div className="admin-modal-form">
-              <div className="admin-modal-grid">
+              <div className="admin-modal-split">
                 <div className="admin-modal-col">
                   <div className="admin-modal-section-title">User Info</div>
                   <div className="admin-modal-row">
@@ -340,6 +340,18 @@ export default function AdminServiceRequestsPage() {
                       )}
                     </div>
                   </div>
+
+                  <div className="admin-modal-divider" />
+
+                  <div className="admin-modal-section-title">Status</div>
+                  <div className="admin-modal-row">
+                    <label>Current Status</label>
+                    <div>{selectedRequest.status}</div>
+                  </div>
+                  <div className="admin-modal-row">
+                    <label>Created</label>
+                    <div>{formatDateTime(selectedRequest.created_at)}</div>
+                  </div>
                 </div>
                 <div className="admin-modal-col">
                   <div className="admin-modal-section-title">Worker Info</div>
@@ -373,24 +385,9 @@ export default function AdminServiceRequestsPage() {
                       })()}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="admin-modal-divider" />
+                  <div className="admin-modal-divider" />
 
-              <div className="admin-modal-grid">
-                <div className="admin-modal-col">
-                  <div className="admin-modal-section-title">Status</div>
-                  <div className="admin-modal-row">
-                    <label>Current Status</label>
-                    <div>{selectedRequest.status}</div>
-                  </div>
-                  <div className="admin-modal-row">
-                    <label>Created</label>
-                    <div>{formatDateTime(selectedRequest.created_at)}</div>
-                  </div>
-                </div>
-                <div className="admin-modal-col">
                   <div className="admin-modal-section-title">Timeline</div>
                   <div className="admin-modal-row">
                     <label>Assigned</label>

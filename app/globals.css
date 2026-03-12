@@ -4580,16 +4580,49 @@ button {
   color: #f8fafc;
 }
 
+.admin-modal--wide {
+  max-width: 620px;
+  width: 86%;
+  padding: 2rem;
+}
+
 .admin-modal h2 {
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
   color: #f8fafc;
 }
 
+.admin-modal--wide h2 {
+  font-size: 1.6rem;
+  margin-bottom: 1.25rem;
+}
+
 .admin-modal-form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.admin-modal-split {
+  display: flex;
+  gap: 2rem;
+}
+
+.admin-modal-split > .admin-modal-col {
+  flex: 1;
+}
+
+.admin-modal-split > .admin-modal-col + .admin-modal-col {
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 2rem;
+}
+
+.admin-modal--wide .admin-modal-section-title {
+  font-size: 1.25rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #ffffff;
+  margin: 0 0 0.75rem 0;
 }
 
 .admin-modal-grid {
@@ -4621,6 +4654,21 @@ button {
 @media (max-width: 640px) {
   .admin-modal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-modal--wide {
+    width: 100%;
+    padding: 1.5rem;
+  }
+
+  .admin-modal-split {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .admin-modal-split > .admin-modal-col + .admin-modal-col {
+    border-left: 0;
+    padding-left: 0;
   }
 }
 
