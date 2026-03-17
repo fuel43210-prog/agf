@@ -50,6 +50,12 @@ export default function SignUpPage() {
       return;
     }
 
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9]).{6,}$/;
+    if (!passwordRegex.test(form.password)) {
+      setError("Password must be at least 6 characters, with 1 uppercase letter and 1 number.");
+      return;
+    }
+
     if (!agreeToTerms) {
       setError("Please agree to the Terms of Service and Privacy Policy");
       return;
@@ -242,6 +248,8 @@ export default function SignUpPage() {
                 onChange={handleChange}
                 placeholder="Create password"
                 required
+                pattern="(?=.*[A-Z])(?=.*[0-9]).{6,}"
+                title="Password must be at least 6 characters, with 1 uppercase letter and 1 number."
               />
             </div>
             <div className="signup-field">
