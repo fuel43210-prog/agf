@@ -22,6 +22,11 @@ export default function ResetPasswordPage() {
       setError("Please enter a new password");
       return;
     }
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9]).{6,}$/;
+    if (!passwordRegex.test(password)) {
+      setError("Password must be at least 6 characters, with 1 uppercase letter and 1 number.");
+      return;
+    }
     if (password !== confirm) {
       setError("Passwords do not match");
       return;
@@ -62,6 +67,8 @@ export default function ResetPasswordPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            pattern="(?=.*[A-Z])(?=.*[0-9]).{6,}"
+            title="Password must be at least 6 characters, with 1 uppercase letter and 1 number."
           />
 
           <label className="forgot-label">Confirm password</label>
