@@ -660,7 +660,10 @@ export default function WorkerDashboardPage() {
     }
 
     console.log(`Navigating to ${label}:`, lat, lon);
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+    let url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+    if (workerPos) {
+      url += `&origin=${workerPos.lat},${workerPos.lng}`;
+    }
     window.open(url, "_blank", "noopener,noreferrer");
   };
 

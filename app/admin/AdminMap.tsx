@@ -196,7 +196,11 @@ export default function AdminMap({
 
   const openStationInGoogleMaps = (station: { name: string; latitude: number; longitude: number }) => {
     const destination = encodeURIComponent(`${station.latitude},${station.longitude}`);
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+    let url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+    if (position) {
+      const origin = encodeURIComponent(`${position.lat},${position.lng}`);
+      url += `&origin=${origin}`;
+    }
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
