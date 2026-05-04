@@ -1,4 +1,4 @@
-﻿﻿"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
@@ -1082,7 +1082,7 @@ export default function UserDashboardPage() {
                         </span>
                         <br />
                         <span className="user-worker-role" style={{ fontSize: '0.85em', color: '#94a3b8' }}>
-                          {w.service_type || "General"} • {w.phone_number || String(w.id).slice(-4)}
+                          {w.service_type || "General"}
                         </span>
                       </div>
                     </li>
