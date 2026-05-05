@@ -259,20 +259,36 @@ export const updateUser = mutationGeneric({
   handler: async (ctx, args: any) => {
     const user = await getByIdInternal(ctx, args.id, "users");
     if (!user) throw new Error("User not found");
-    const users = await ctx.db.query("users").collect();
-    const existingEmail = users.find(
-      (u) => String(u._id) !== String(user._id) && String(u.email || "").toLowerCase() === String(args.email || "").toLowerCase()
-    );
-    if (existingEmail) throw new Error("Email already in use");
-    await ctx.db.patch(user._id, {
-      first_name: args.first_name,
-      last_name: args.last_name,
-      email: String(args.email || "").toLowerCase(),
-      phone_number: args.phone_number,
-      role: args.role,
-      ...(args.password ? { password: args.password } : {}),
+    
+    if (args.email !== undefined) {
+      const users = await ctx.db.query("users").collect();
+      const existingEmail = users.find(
+        (u) => String(u._id) !== String(user._id) && String(u.email || "").toLowerCase() === String(args.email).toLowerCase()
+      );
+      if (existingEmail) throw new Error("Email already in use");
+    }
+
+    const patch: Record<string, any> = {
       updated_at: nowIso(),
-    });
+    };
+    
+    if (args.first_name !== undefined) patch.first_name = args.first_name;
+    else if (user.first_name === undefined) patch.first_name = "";
+
+    if (args.last_name !== undefined) patch.last_name = args.last_name;
+    else if (user.last_name === undefined) patch.last_name = "";
+
+    if (args.email !== undefined) patch.email = String(args.email).toLowerCase();
+    else if (user.email === undefined) patch.email = "";
+
+    if (args.phone_number !== undefined) patch.phone_number = args.phone_number;
+    
+    if (args.role !== undefined) patch.role = args.role;
+    
+    if (args.password) patch.password = args.password;
+    else if (user.password === undefined) patch.password = "";
+
+    await ctx.db.patch(user._id, patch);
     return { ok: true };
   },
 });
@@ -339,30 +355,46 @@ export const updateWorker = mutationGeneric({
   handler: async (ctx, args: any) => {
     const worker = await getByIdInternal(ctx, args.id, "workers");
     if (!worker) throw new Error("Worker not found");
-    const workers = await ctx.db.query("workers").collect();
-    const existingEmail = workers.find(
-      (w) => String(w._id) !== String(worker._id) && String(w.email || "").toLowerCase() === String(args.email || "").toLowerCase()
-    );
-    if (existingEmail) throw new Error("Email already in use");
+    
+    if (args.email !== undefined) {
+      const workers = await ctx.db.query("workers").collect();
+      const existingEmail = workers.find(
+        (w) => String(w._id) !== String(worker._id) && String(w.email || "").toLowerCase() === String(args.email).toLowerCase()
+      );
+      if (existingEmail) throw new Error("Email already in use");
+    }
 
     const patch: Record<string, any> = {
-      first_name: args.first_name,
-      last_name: args.last_name,
-      email: String(args.email || "").toLowerCase(),
-      phone_number: args.phone_number,
-      status: args.status,
-      status_locked: Boolean(args.status_locked),
-      verified: Boolean(args.verified),
       updated_at: nowIso(),
     };
+    
+    if (args.first_name !== undefined) patch.first_name = args.first_name;
+    else if (worker.first_name === undefined) patch.first_name = "";
+
+    if (args.last_name !== undefined) patch.last_name = args.last_name;
+    else if (worker.last_name === undefined) patch.last_name = "";
+
+    if (args.email !== undefined) patch.email = String(args.email).toLowerCase();
+    else if (worker.email === undefined) patch.email = "";
+
+    if (args.phone_number !== undefined) patch.phone_number = args.phone_number;
+    
+    if (args.status !== undefined) patch.status = args.status;
+    if (args.status_locked !== undefined) patch.status_locked = Boolean(args.status_locked);
+    if (args.verified !== undefined) {
+      patch.verified = Boolean(args.verified);
+      if (!patch.verified) patch.docs_submitted_at = undefined;
+    }
     if (args.password) patch.password = args.password;
-    if (!patch.verified) patch.docs_submitted_at = undefined;
+    else if (worker.password === undefined) patch.password = "";
+    
     if (args.reverify) {
       patch.license_photo = undefined;
       patch.self_photo = undefined;
       patch.docs_submitted_at = undefined;
       patch.verified = false;
     }
+    
     await ctx.db.patch(worker._id, patch);
     return { ok: true };
   },
