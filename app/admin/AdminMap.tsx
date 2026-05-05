@@ -225,53 +225,16 @@ export default function AdminMap({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your browser.");
-      return;
-    }
-    // Browsers only allow geolocation on secure origins: HTTPS or http://localhost
-    if (!window.isSecureContext) {
-      setLocationError(
-        "Location works only on HTTPS or localhost. Open this page at http://localhost:3000 (or use HTTPS) to see your position."
-      );
-      return;
-    }
+    // Removed geolocation checks since we are using hardcoded position
     if (watchPosition) {
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setLocationError(null);
-        },
-        (err) => {
-          const msg =
-            err.code === 1
-              ? "Location denied. Allow location for this site to see your position on the map."
-              : err.code === 2
-                ? "Location unavailable. Try again or open via http://localhost:3000 or HTTPS."
-                : err.message || "Could not get your location.";
-          setLocationError(msg);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-      return () => navigator.geolocation.clearWatch(watchId);
+      // Simulate watchPosition immediately calling back with the default position
+      setPosition({ lat: 12.141116665221949, lng: 75.25000625657133 });
+      setLocationError(null);
+      return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationError(null);
-      },
-      (err) => {
-        const msg =
-          err.code === 1
-            ? "Location denied. Allow location for this site to see your position on the map."
-            : err.code === 2
-              ? "Location unavailable. Try again or open via http://localhost:3000 or HTTPS."
-              : err.message || "Could not get your location.";
-        setLocationError(msg);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    setPosition({ lat: 12.141116665221949, lng: 75.25000625657133 });
+    setLocationError(null);
   }, []);
 
   useEffect(() => {

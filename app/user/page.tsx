@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
@@ -394,28 +394,17 @@ export default function UserDashboardPage() {
     if (!requestModalOpen) return;
     if (typeof window === "undefined") return;
     if (requestLocation || gpsLocation) return;
-    if (!navigator.geolocation) {
-      setRequestLocation(null);
-      setRequestLocationError("Location is not supported by your browser.");
-      setManualLocationMode(true);
-      return;
-    }
+    // Removed geolocation checks since we are using hardcoded position
     let cancelled = false;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (cancelled) return;
-        setRequestLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        setRequestLocationError(null);
-        setManualLocationMode(false);
-      },
-      () => {
-        if (cancelled) return;
-        setRequestLocation(null);
-        setRequestLocationError("Unable to access your location.");
-        setManualLocationMode(true);
-      },
-      { timeout: 8000 }
-    );
+    const defaultLat = 12.141116665221949;
+    const defaultLon = 75.25000625657133;
+    
+    if (!cancelled) {
+      setRequestLocation({ lat: defaultLat, lon: defaultLon });
+      setRequestLocationError(null);
+      setManualLocationMode(false);
+    }
+    
     return () => {
       cancelled = true;
     };
@@ -643,7 +632,18 @@ export default function UserDashboardPage() {
     if (user_lat == null || user_lon == null) {
       try {
         const pos = await new Promise<GeolocationPosition | null>((resolve) => {
-          navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 5000 });
+          resolve({
+            coords: {
+              latitude: 12.141116665221949,
+              longitude: 75.25000625657133,
+              accuracy: 100,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null
+            },
+            timestamp: Date.now()
+          } as GeolocationPosition);
         });
         if (pos) {
           user_lat = pos.coords.latitude;
@@ -855,13 +855,21 @@ export default function UserDashboardPage() {
     let userLon = gpsLocation?.lon;
 
     if (userLat == null || userLon == null) {
-      if (typeof window === "undefined" || !navigator.geolocation) {
-        showToast("Location is not supported by your browser.", "error");
-        return;
-      }
+      // Removed geolocation checks since we are using hardcoded position
 
       const pos = await new Promise<GeolocationPosition | null>((resolve) => {
-        navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 8000 });
+        resolve({
+          coords: {
+            latitude: 12.141116665221949,
+            longitude: 75.25000625657133,
+            accuracy: 100,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null
+          },
+          timestamp: Date.now()
+        } as GeolocationPosition);
       });
 
       if (!pos) {

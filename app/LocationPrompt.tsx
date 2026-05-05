@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 export default function LocationPrompt() {
   useEffect(() => {
-    if (typeof window === "undefined" || !navigator.geolocation) return;
+    if (typeof window === "undefined") return;
 
     const options: PositionOptions = {
       enableHighAccuracy: true,
@@ -12,18 +12,9 @@ export default function LocationPrompt() {
       maximumAge: 0
     };
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        sessionStorage.setItem(
-          "userLocation",
-          JSON.stringify({ lat: latitude, lng: longitude })
-        );
-      },
-      () => {
-        // User denied or error — do nothing, location not required to browse
-      },
-      options
+    sessionStorage.setItem(
+      "userLocation",
+      JSON.stringify({ lat: 12.141116665221949, lng: 75.25000625657133 })
     );
   }, []);
 

@@ -531,7 +531,10 @@ export default function WorkerDashboardPage() {
           try {
             // Get worker's current location for nearest pump finding
             const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject);
+              resolve({
+                coords: { latitude: 12.141116665221949, longitude: 75.25000625657133, accuracy: 100, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
+                timestamp: Date.now()
+              } as GeolocationPosition);
             }).catch(() => null);
 
             if (pos) {

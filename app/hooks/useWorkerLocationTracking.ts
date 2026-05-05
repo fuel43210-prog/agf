@@ -39,10 +39,7 @@ export function useWorkerLocationTracking({
 
   // Start location tracking
   const startTracking = useCallback(() => {
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser');
-      return;
-    }
+    // Geolocation check removed since using hardcoded position
 
     setTracking(true);
     setError(null);
@@ -98,11 +95,11 @@ export function useWorkerLocationTracking({
     };
 
     // Watch location changes
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      successCallback,
-      errorCallback,
-      options
-    ) as unknown as number;
+    successCallback({
+      coords: { latitude: 12.141116665221949, longitude: 75.25000625657133, accuracy: 100, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
+      timestamp: Date.now()
+    } as GeolocationPosition);
+    watchIdRef.current = 1;
   }, [onLocationUpdate, onRecalculationNeeded, recalculationThreshold]);
 
   // Stop location tracking
@@ -126,20 +123,9 @@ export function useWorkerLocationTracking({
   // Get current location once (for initial setup)
   const getCurrentLocation = useCallback(() => {
     return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation not supported'));
-        return;
-      }
+      // Geolocation check removed since using hardcoded position
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          resolve({ lat: latitude, lng: longitude });
-        },
-        (error) => {
-          reject(new Error(getGeolocationErrorMessage(error.code)));
-        }
-      );
+      resolve({ lat: 12.141116665221949, lng: 75.25000625657133 });
     });
   }, []);
 
